@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Application Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B1220;
+    --panel: #101B2D;
+    --panel-border: #1E2E45;
+    --accent: #22D3EE;
+    --accent-dim: #0E7C90;
+    --text: #E8EEF5;
+    --text-muted: #7C93AC;
+    --danger: #F1746E;
+    --offer: #4ADE80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+  h1, h2, .brand {
+    font-family: 'Sora', sans-serif;
+  }
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .brand {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .brand span { color: var(--accent); }
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  .stats {
+    display: flex;
+    gap: 24px;
+  }
+  .stat {
+    text-align: right;
+  }
+  .stat .num {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: 'Sora', sans-serif;
+  }
+  .stat .label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 32px 0;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    padding: 10px 16px;
+    font-size: 14px;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--accent);
+    color: #04202A;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(240px, 1fr));
+    gap: 16px;
+    padding: 20px 32px 40px;
+    overflow-x: auto;
+  }
+  .column {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 14px;
+    min-height: 200px;
+  }
+  .column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 4px;
+  }
+  .column-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .column-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .col-applied .column-title { color: var(--text); }
+  .col-interviewing .column-title { color: var(--accent); }
+  .col-offer .column-title { color: var(--offer); }
+  .col-rejected .column-title { color: var(--danger); }
+
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: grab;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-role {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .card-company {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .card-actions select {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+  .card-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .empty-state {
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 8px;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4,10,20,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    width: 90%;
+    max-width: 420px;
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 18px; }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  @media (max-width: 900px) {
+    .board { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">Application <span>Tracker</span></div>
+    <div class="subtitle">Every application, one pipeline.</div>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="toolbar">
+  <button class="btn-primary" id="addBtn">+ Add application</button>
+  <button class="btn-ghost" id="exportBtn">Export CSV</button>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2 id="modalTitle">Add application</h2>
+    <form id="appForm">
+      <input type="hidden" id="appId" />
+      <div class="field">
+        <label>Company / Client</label>
+        <input type="text" id="company" required placeholder="e.g. Acme Co" />
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <input type="text" id="role" required placeholder="e.g. Full-Stack Developer" />
+      </div>
+      <div class="field">
+        <label>Platform</label>
+        <input type="text" id="platform" placeholder="e.g. Mercor, Upwork, Handshake AI" />
+      </div>
+      <div class="field">
+        <label>Date applied</label>
+        <input type="date" id="dateApplied" />
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="status">
+          <option value="applied">Applied</option>
+          <option value="interviewing">Interviewing</option>
+          <option value="offer">Offer</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Link</label>
+        <input type="text" id="link" placeholder="Job posting or application URL" />
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Anything worth remembering for the interview"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:4000/api";
+const STATUSES = ["applied", "interviewing", "offer", "rejected"];
+const STATUS_LABELS = { applied: "Applied", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected" };
+
+let applications = [];
+
+async function fetchApplications() {
+  const res = await fetch(`${API}/applications`);
+  applications = await res.json();
+  render();
+}
+
+async function fetchStats() {
+  const res = await fetch(`${API}/stats`);
+  const stats = await res.json();
+  document.getElementById("stats").innerHTML = STATUSES.map(s => `
+    <div class="stat">
+      <div class="num">${stats[s] ?? 0}</div>
+      <div class="label">${STATUS_LABELS[s]}</div>
+    </div>
+  `).join("") + `
+    <div class="stat">
+      <div class="num">${stats.total ?? 0}</div>
+      <div class="label">Total</div>
+    </div>
+  `;
+}
+
+function render() {
+  const board = document.getElementById("board");
+  board.innerHTML = STATUSES.map(status => {
+    const items = applications.filter(a => a.status === status);
+    return `
+      <div class="column col-${status}">
+        <div class="column-header">
+          <div class="column-title">${STATUS_LABELS[status]}</div>
+          <div class="column-count">${items.length}</div>
+        </div>
+        ${items.length ? items.map(cardHTML).join("") : `<div class="empty-state">Nothing here yet</div>`}
+      </div>
+    `;
+  }).join("");
+}
+
+function cardHTML(app) {
+  return `
+    <div class="card" data-id="${app.id}">
+      <div class="card-role">${escapeHTML(app.role)}</div>
+      <div class="card-company">${escapeHTML(app.company)}</div>
+      <div class="card-meta">
+        <span>${escapeHTML(app.platform || "—")}</span>
+        <span>${app.dateApplied || ""}</span>
+      </div>
+      <div class="card-actions">
+        <select onchange="updateStatus('${app.id}', this.value)">
+          ${STATUSES.map(s => `<option value="${s}" ${s === app.status ? "selected" : ""}>${STATUS_LABELS[s]}</option>`).join("")}
+        </select>
+        <button class="btn-ghost" onclick="editApp('${app.id}')">Edit</button>
+        <button class="btn-ghost" onclick="deleteApp('${app.id}')">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHTML(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+async function updateStatus(id, status) {
+  await fetch(`${API}/applications/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  await fetchApplications();
+  await fetchStats();
+}
+
+async function deleteApp(id) {
+  if (!confirm("Delete this application?")) return;
+  await fetch(`${API}/applications/${id}`, { method: "DELETE" });
+  await fetchApplications();
+  await fetchStats();
+}
+
+function editApp(id) {
+  const app = applications.find(a => a.id === id);
+  if (!app) return;
+  openModal(app);
+}
+
+function openModal(app = null) {
+  document.getElementById("modalTitle").textContent = app ? "Edit application" : "Add application";
+  document.getElementById("appId").value = app?.id || "";
+  document.getElementById("company").value = app?.company || "";
+  document.getElementById("role").value = app?.role || "";
+  document.getElementById("platform").value = app?.platform || "";
+  document.getElementById("dateApplied").value = app?.dateApplied || new Date().toISOString().slice(0, 10);
+  document.getElementById("status").value = app?.status || "applied";
+  document.getElementById("link").value = app?.link || "";
+  document.getElementById("notes").value = app?.notes || "";
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modalBackdrop").classList.remove("open");
+}
+
+document.getElementById("addBtn").addEventListener("click", () => openModal());
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+  if (e.target.id === "modalBackdrop") closeModal();
+});
+
+document.getElementById("appForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("appId").value;
+  const payload = {
+    company: document.getElementById("company").value,
+    role: document.getElementById("role").value,
+    platform: document.getElementById("platform").value,
+    dateApplied: document.getElementById("dateApplied").value,
+    status: document.getElementById("status").value,
+    link: document.getElementById("link").value,
+    notes: document.getElementById("notes").value,
+  };
+  if (id) {
+    await fetch(`${API}/applications/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } else {
+    await fetch(`${API}/applications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+  closeModal();
+  await fetchApplications();
+  await fetchStats();
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  window.location.href = `${API}/export/csv`;
+});
+
+fetchApplications();
+fetchStats();
+</script>
+</body>
+</html>
