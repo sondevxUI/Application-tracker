@@ -26,9 +26,7 @@
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
   }
-  h1, h2, .brand {
-    font-family: 'Sora', sans-serif;
-  }
+  h1, h2, .brand { font-family: 'Sora', sans-serif; }
   header {
     padding: 28px 32px 20px;
     border-bottom: 1px solid var(--panel-border);
@@ -38,39 +36,27 @@
     flex-wrap: wrap;
     gap: 16px;
   }
-  .brand {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
   .brand span { color: var(--accent); }
-  .subtitle {
+  .subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+  .stats { display: flex; gap: 24px; align-items: center; }
+  .stat { text-align: right; }
+  .stat .num { font-size: 22px; font-weight: 700; font-family: 'Sora', sans-serif; }
+  .stat .label { font-size: 12px; color: var(--text-muted); }
+  .user-chip {
+    font-size: 13px;
     color: var(--text-muted);
-    font-size: 14px;
-    margin-top: 4px;
-  }
-  .stats {
     display: flex;
-    gap: 24px;
+    align-items: center;
+    gap: 10px;
   }
-  .stat {
-    text-align: right;
-  }
-  .stat .num {
-    font-size: 22px;
-    font-weight: 700;
-    font-family: 'Sora', sans-serif;
-  }
-  .stat .label {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    padding: 20px 32px 0;
-    gap: 12px;
-    flex-wrap: wrap;
+  .role-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(34,211,238,0.15);
+    color: var(--accent);
+    font-weight: 600;
   }
   button {
     font-family: 'Inter', sans-serif;
@@ -83,17 +69,18 @@
     transition: transform 0.1s ease, opacity 0.15s ease;
   }
   button:active { transform: scale(0.97); }
-  .btn-primary {
-    background: var(--accent);
-    color: #04202A;
-  }
+  .btn-primary { background: var(--accent); color: #04202A; }
   .btn-primary:hover { opacity: 0.9; }
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--panel-border);
-    color: var(--text);
-  }
+  .btn-ghost { background: transparent; border: 1px solid var(--panel-border); color: var(--text); }
   .btn-ghost:hover { border-color: var(--accent); }
+  .btn-sm { padding: 4px 8px; font-size: 12px; }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 32px 0;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
   .board {
     display: grid;
     grid-template-columns: repeat(4, minmax(240px, 1fr));
@@ -115,11 +102,7 @@
     margin-bottom: 12px;
     padding: 0 4px;
   }
-  .column-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: capitalize;
-  }
+  .column-title { font-size: 13px; font-weight: 600; text-transform: capitalize; }
   .column-count {
     font-size: 12px;
     color: var(--text-muted);
@@ -131,24 +114,21 @@
   .col-interviewing .column-title { color: var(--accent); }
   .col-offer .column-title { color: var(--offer); }
   .col-rejected .column-title { color: var(--danger); }
-
   .card {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--panel-border);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 10px;
-    cursor: grab;
   }
   .card:hover { border-color: var(--accent); }
-  .card-role {
+  .card-role { font-weight: 600; font-size: 14px; }
+  .card-company { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .card-applicant {
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 6px;
     font-weight: 600;
-    font-size: 14px;
-  }
-  .card-company {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-top: 2px;
   }
   .card-meta {
     display: flex;
@@ -157,11 +137,7 @@
     font-size: 11px;
     color: var(--text-muted);
   }
-  .card-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-  }
+  .card-actions { display: flex; gap: 6px; margin-top: 10px; }
   .card-actions select {
     flex: 1;
     background: var(--bg);
@@ -171,18 +147,59 @@
     font-size: 12px;
     padding: 4px 6px;
   }
-  .card-actions button {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-  .empty-state {
-    color: var(--text-muted);
-    font-size: 13px;
-    text-align: center;
-    padding: 20px 8px;
-  }
+  .empty-state { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 8px; }
 
-  /* Modal */
+  /* Auth screen */
+  .auth-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .auth-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .auth-card .brand { text-align: center; margin-bottom: 4px; font-size: 24px; }
+  .auth-card .subtitle { text-align: center; margin-bottom: 24px; }
+  .auth-error {
+    background: rgba(241,116,110,0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .auth-toggle {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .auth-card button[type="submit"] { width: 100%; margin-top: 6px; }
+
+  /* Modal (admin edit) */
   .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -202,52 +219,63 @@
     max-width: 420px;
   }
   .modal h2 { margin: 0 0 16px; font-size: 18px; }
-  .field { margin-bottom: 12px; }
-  .field label {
-    display: block;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 6px;
-  }
-  .field input, .field select, .field textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--panel-border);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 9px 10px;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-  }
-  .field textarea { resize: vertical; min-height: 60px; }
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 18px;
-  }
-  @media (max-width: 900px) {
-    .board { grid-template-columns: 1fr; }
-  }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+  .hidden { display: none !important; }
+  @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<header>
-  <div>
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-card">
     <div class="brand">Application <span>Tracker</span></div>
-    <div class="subtitle">Every application, one pipeline.</div>
+    <div class="subtitle">Sign in to track your applications.</div>
+    <div class="auth-error" id="authError"></div>
+    <form id="authForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="authEmail" required placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="authPassword" required placeholder="At least 6 characters" minlength="6" />
+      </div>
+      <button type="submit" class="btn-primary" id="authSubmitBtn">Log in</button>
+    </form>
+    <div class="auth-toggle">
+      <span id="authToggleText">Don't have an account? <a id="authToggleLink">Sign up</a></span>
+    </div>
   </div>
-  <div class="stats" id="stats"></div>
-</header>
-
-<div class="toolbar">
-  <button class="btn-primary" id="addBtn">+ Add application</button>
-  <button class="btn-ghost" id="exportBtn">Export CSV</button>
 </div>
 
-<div class="board" id="board"></div>
+<!-- APP SCREEN -->
+<div id="appScreen" class="hidden">
+  <header>
+    <div>
+      <div class="brand">Application <span>Tracker</span></div>
+      <div class="subtitle" id="boardSubtitle">Every application, one pipeline.</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+      <div class="stats" id="stats"></div>
+      <div class="user-chip">
+        <span id="userEmailLabel"></span>
+        <span class="role-badge" id="roleBadge"></span>
+        <button class="btn-ghost btn-sm" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+  </header>
 
+  <div class="toolbar">
+    <button class="btn-primary" id="addBtn">+ Add application</button>
+    <button class="btn-ghost hidden" id="exportBtn">Export CSV (all users)</button>
+  </div>
+
+  <div class="board" id="board"></div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
     <h2 id="modalTitle">Add application</h2>
@@ -269,7 +297,7 @@
         <label>Date applied</label>
         <input type="date" id="dateApplied" />
       </div>
-      <div class="field">
+      <div class="field hidden" id="statusFieldWrap">
         <label>Status</label>
         <select id="status">
           <option value="applied">Applied</option>
@@ -295,20 +323,112 @@
 </div>
 
 <script>
-const API = "https://application-tracker-25n2.onrender.com/api";;
+const API = "https://application-tracker-25n2.onrender.com/api";
 const STATUSES = ["applied", "interviewing", "offer", "rejected"];
 const STATUS_LABELS = { applied: "Applied", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected" };
 
+let token = localStorage.getItem("at_token") || null; // Note: fine for a real deployed site (not a Claude artifact)
+let currentUser = null;
 let applications = [];
+let isRegisterMode = false;
 
+// ---------- AUTH ----------
+function showAuthScreen() {
+  document.getElementById("authScreen").classList.remove("hidden");
+  document.getElementById("appScreen").classList.add("hidden");
+}
+function showAppScreen() {
+  document.getElementById("authScreen").classList.add("hidden");
+  document.getElementById("appScreen").classList.remove("hidden");
+}
+
+document.getElementById("authToggleLink").addEventListener("click", () => {
+  isRegisterMode = !isRegisterMode;
+  document.getElementById("authSubmitBtn").textContent = isRegisterMode ? "Sign up" : "Log in";
+  document.getElementById("authToggleText").innerHTML = isRegisterMode
+    ? `Already have an account? <a id="authToggleLink2">Log in</a>`
+    : `Don't have an account? <a id="authToggleLink2">Sign up</a>`;
+  document.getElementById("authToggleLink2").addEventListener("click", () => {
+    document.getElementById("authToggleLink").click();
+  });
+});
+
+document.getElementById("authForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("authEmail").value;
+  const password = document.getElementById("authPassword").value;
+  const endpoint = isRegisterMode ? "register" : "login";
+  const errBox = document.getElementById("authError");
+  errBox.style.display = "none";
+  try {
+    const res = await fetch(`${API}/auth/${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errBox.textContent = data.error || "Something went wrong";
+      errBox.style.display = "block";
+      return;
+    }
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem("at_token", token);
+    afterLogin();
+  } catch (err) {
+    errBox.textContent = "Could not reach the server. Try again in a moment.";
+    errBox.style.display = "block";
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  token = null;
+  currentUser = null;
+  localStorage.removeItem("at_token");
+  showAuthScreen();
+});
+
+async function afterLogin() {
+  showAppScreen();
+  document.getElementById("userEmailLabel").textContent = currentUser.email;
+  document.getElementById("roleBadge").textContent = currentUser.role === "admin" ? "Admin" : "Member";
+  document.getElementById("boardSubtitle").textContent =
+    currentUser.role === "admin" ? "Every applicant, one dashboard." : "Every application, one pipeline.";
+  document.getElementById("exportBtn").classList.toggle("hidden", currentUser.role !== "admin");
+  document.getElementById("statusFieldWrap").classList.toggle("hidden", currentUser.role !== "admin");
+  await fetchApplications();
+  await fetchStats();
+}
+
+async function tryResumeSession() {
+  if (!token) return showAuthScreen();
+  try {
+    const res = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error("expired");
+    const data = await res.json();
+    currentUser = data.user;
+    afterLogin();
+  } catch {
+    token = null;
+    localStorage.removeItem("at_token");
+    showAuthScreen();
+  }
+}
+
+function authHeaders(extra = {}) {
+  return { Authorization: `Bearer ${token}`, ...extra };
+}
+
+// ---------- DATA ----------
 async function fetchApplications() {
-  const res = await fetch(`${API}/applications`);
+  const res = await fetch(`${API}/applications`, { headers: authHeaders() });
   applications = await res.json();
   render();
 }
 
 async function fetchStats() {
-  const res = await fetch(`${API}/stats`);
+  const res = await fetch(`${API}/stats`, { headers: authHeaders() });
   const stats = await res.json();
   document.getElementById("stats").innerHTML = STATUSES.map(s => `
     <div class="stat">
@@ -325,6 +445,7 @@ async function fetchStats() {
 
 function render() {
   const board = document.getElementById("board");
+  const isAdmin = currentUser.role === "admin";
   board.innerHTML = STATUSES.map(status => {
     const items = applications.filter(a => a.status === status);
     return `
@@ -333,28 +454,29 @@ function render() {
           <div class="column-title">${STATUS_LABELS[status]}</div>
           <div class="column-count">${items.length}</div>
         </div>
-        ${items.length ? items.map(cardHTML).join("") : `<div class="empty-state">Nothing here yet</div>`}
+        ${items.length ? items.map(a => cardHTML(a, isAdmin)).join("") : `<div class="empty-state">Nothing here yet</div>`}
       </div>
     `;
   }).join("");
 }
 
-function cardHTML(app) {
+function cardHTML(app, isAdmin) {
   return `
     <div class="card" data-id="${app.id}">
       <div class="card-role">${escapeHTML(app.role)}</div>
       <div class="card-company">${escapeHTML(app.company)}</div>
+      ${isAdmin ? `<div class="card-applicant">${escapeHTML(app.userEmail || "")}</div>` : ""}
       <div class="card-meta">
         <span>${escapeHTML(app.platform || "—")}</span>
         <span>${app.dateApplied || ""}</span>
       </div>
+      ${isAdmin ? `
       <div class="card-actions">
         <select onchange="updateStatus('${app.id}', this.value)">
           ${STATUSES.map(s => `<option value="${s}" ${s === app.status ? "selected" : ""}>${STATUS_LABELS[s]}</option>`).join("")}
         </select>
-        <button class="btn-ghost" onclick="editApp('${app.id}')">Edit</button>
-        <button class="btn-ghost" onclick="deleteApp('${app.id}')">Delete</button>
-      </div>
+        <button class="btn-ghost btn-sm" onclick="deleteApp('${app.id}')">Delete</button>
+      </div>` : ""}
     </div>
   `;
 }
@@ -368,7 +490,7 @@ function escapeHTML(str) {
 async function updateStatus(id, status) {
   await fetch(`${API}/applications/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ status }),
   });
   await fetchApplications();
@@ -377,35 +499,27 @@ async function updateStatus(id, status) {
 
 async function deleteApp(id) {
   if (!confirm("Delete this application?")) return;
-  await fetch(`${API}/applications/${id}`, { method: "DELETE" });
+  await fetch(`${API}/applications/${id}`, { method: "DELETE", headers: authHeaders() });
   await fetchApplications();
   await fetchStats();
 }
 
-function editApp(id) {
-  const app = applications.find(a => a.id === id);
-  if (!app) return;
-  openModal(app);
-}
-
-function openModal(app = null) {
-  document.getElementById("modalTitle").textContent = app ? "Edit application" : "Add application";
-  document.getElementById("appId").value = app?.id || "";
-  document.getElementById("company").value = app?.company || "";
-  document.getElementById("role").value = app?.role || "";
-  document.getElementById("platform").value = app?.platform || "";
-  document.getElementById("dateApplied").value = app?.dateApplied || new Date().toISOString().slice(0, 10);
-  document.getElementById("status").value = app?.status || "applied";
-  document.getElementById("link").value = app?.link || "";
-  document.getElementById("notes").value = app?.notes || "";
+// ---------- ADD MODAL ----------
+function openModal() {
+  document.getElementById("modalTitle").textContent = "Add application";
+  document.getElementById("appId").value = "";
+  document.getElementById("company").value = "";
+  document.getElementById("role").value = "";
+  document.getElementById("platform").value = "";
+  document.getElementById("dateApplied").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("status").value = "applied";
+  document.getElementById("link").value = "";
+  document.getElementById("notes").value = "";
   document.getElementById("modalBackdrop").classList.add("open");
 }
+function closeModal() { document.getElementById("modalBackdrop").classList.remove("open"); }
 
-function closeModal() {
-  document.getElementById("modalBackdrop").classList.remove("open");
-}
-
-document.getElementById("addBtn").addEventListener("click", () => openModal());
+document.getElementById("addBtn").addEventListener("click", openModal);
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 document.getElementById("modalBackdrop").addEventListener("click", (e) => {
   if (e.target.id === "modalBackdrop") closeModal();
@@ -413,7 +527,6 @@ document.getElementById("modalBackdrop").addEventListener("click", (e) => {
 
 document.getElementById("appForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const id = document.getElementById("appId").value;
   const payload = {
     company: document.getElementById("company").value,
     role: document.getElementById("role").value,
@@ -423,30 +536,27 @@ document.getElementById("appForm").addEventListener("submit", async (e) => {
     link: document.getElementById("link").value,
     notes: document.getElementById("notes").value,
   };
-  if (id) {
-    await fetch(`${API}/applications/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } else {
-    await fetch(`${API}/applications`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  }
+  await fetch(`${API}/applications`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
   closeModal();
   await fetchApplications();
   await fetchStats();
 });
 
-document.getElementById("exportBtn").addEventListener("click", () => {
-  window.location.href = `${API}/export/csv`;
+document.getElementById("exportBtn").addEventListener("click", async () => {
+  const res = await fetch(`${API}/export/csv`, { headers: authHeaders() });
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "applications.csv";
+  a.click();
 });
 
-fetchApplications();
-fetchStats();
+tryResumeSession();
 </script>
 </body>
 </html>
