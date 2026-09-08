@@ -81,6 +81,30 @@
     gap: 12px;
     flex-wrap: wrap;
   }
+  .quick-launch {
+    padding: 16px 32px 0;
+  }
+  .quick-launch-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .quick-launch-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .platform-btn {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .platform-btn:hover { border-color: var(--accent); color: var(--accent); }
   .board {
     display: grid;
     grid-template-columns: repeat(4, minmax(240px, 1fr));
@@ -148,6 +172,17 @@
     padding: 4px 6px;
   }
   .empty-state { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 8px; }
+  .applicant-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .applicant-name { font-weight: 600; font-size: 14px; }
+  .applicant-email { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .applicant-skills { font-size: 13px; color: var(--accent); margin-top: 6px; }
+  .applicant-none { font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 6px; }
 
   /* Auth screen */
   .auth-wrap {
@@ -291,6 +326,14 @@
         <label>Email</label>
         <input type="email" id="authEmail" required placeholder="you@example.com" />
       </div>
+      <div class="field hidden" id="displayNameField">
+        <label>Display name (optional)</label>
+        <input type="text" id="authDisplayName" placeholder="How your name shows on the dashboard" maxlength="60" />
+      </div>
+      <div class="field hidden" id="skillsField">
+        <label>Skills / profession (optional)</label>
+        <input type="text" id="authSkills" placeholder="e.g. React developer, Virtual assistant, Graphic designer" maxlength="200" />
+      </div>
       <div class="field">
         <label>Password</label>
         <div class="password-wrap">
@@ -380,12 +423,37 @@
     </div>
   </header>
 
+  <div class="quick-launch">
+    <div class="quick-launch-label">Quick apply</div>
+    <div class="quick-launch-row">
+      <button class="btn-ghost platform-btn" data-platform="Upwork" data-url="https://www.upwork.com/ab/find-work/">Upwork</button>
+      <button class="btn-ghost platform-btn" data-platform="FlexJobs" data-url="https://www.flexjobs.com/jobs">FlexJobs</button>
+      <button class="btn-ghost platform-btn" data-platform="Mercor" data-url="https://work.mercor.com/">Mercor</button>
+      <button class="btn-ghost platform-btn" data-platform="Handshake AI" data-url="https://app.handshake.ai/">Handshake AI</button>
+      <button class="btn-ghost platform-btn" data-platform="eVirtualAssistants" data-url="https://app.evirtualassistants.com/dashboard/worker/onboarding">eVirtualAssistants</button>
+    </div>
+  </div>
+
   <div class="toolbar">
     <button class="btn-primary" id="addBtn">+ Add application</button>
-    <button class="btn-ghost hidden" id="exportBtn">Export CSV (all users)</button>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-ghost hidden" id="applicantsBtn">View applicants</button>
+      <button class="btn-ghost hidden" id="exportBtn">Export CSV (all users)</button>
+    </div>
   </div>
 
   <div class="board" id="board"></div>
+</div>
+
+<!-- APPLICANTS MODAL (admin only) -->
+<div class="modal-backdrop" id="applicantsModalBackdrop">
+  <div class="modal" style="max-width: 560px;">
+    <h2>Applicants</h2>
+    <div id="applicantsList" style="max-height: 400px; overflow-y: auto;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="closeApplicantsBtn">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- ADD/EDIT MODAL -->
@@ -485,6 +553,8 @@ function toggleAuthMode() {
   document.getElementById("authSubmitBtn").textContent = isRegisterMode ? "Sign up" : "Log in";
   document.getElementById("confirmPasswordField").classList.toggle("hidden", !isRegisterMode);
   document.getElementById("authConfirmPassword").required = isRegisterMode;
+  document.getElementById("displayNameField").classList.toggle("hidden", !isRegisterMode);
+  document.getElementById("skillsField").classList.toggle("hidden", !isRegisterMode);
   document.getElementById("forgotLinkWrap").classList.toggle("hidden", isRegisterMode); // reset only makes sense for existing accounts
   document.getElementById("authToggleText").innerHTML = isRegisterMode
     ? `Already have an account? <a id="authToggleLink">Log in</a>`
@@ -593,6 +663,8 @@ document.getElementById("authForm").addEventListener("submit", async (e) => {
   const email = document.getElementById("authEmail").value;
   const password = document.getElementById("authPassword").value;
   const confirmPassword = document.getElementById("authConfirmPassword").value;
+  const displayName = document.getElementById("authDisplayName").value;
+  const skills = document.getElementById("authSkills").value;
   const endpoint = isRegisterMode ? "register" : "login";
   const errBox = document.getElementById("authError");
   errBox.style.display = "none";
@@ -607,7 +679,7 @@ document.getElementById("authForm").addEventListener("submit", async (e) => {
     const res = await fetch(`${API}/auth/${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(isRegisterMode ? { email, password, displayName, skills } : { email, password }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -634,11 +706,12 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 
 async function afterLogin() {
   showAppScreen();
-  document.getElementById("userEmailLabel").textContent = currentUser.email;
+  document.getElementById("userEmailLabel").textContent = currentUser.displayName || currentUser.email;
   document.getElementById("roleBadge").textContent = currentUser.role === "admin" ? "Admin" : "Member";
   document.getElementById("boardSubtitle").textContent =
     currentUser.role === "admin" ? "Every applicant, one dashboard." : "Every application, one pipeline.";
   document.getElementById("exportBtn").classList.toggle("hidden", currentUser.role !== "admin");
+  document.getElementById("applicantsBtn").classList.toggle("hidden", currentUser.role !== "admin");
   document.getElementById("statusFieldWrap").classList.toggle("hidden", currentUser.role !== "admin");
   await fetchApplications();
   await fetchStats();
@@ -708,7 +781,7 @@ function cardHTML(app, isAdmin) {
     <div class="card" data-id="${app.id}">
       <div class="card-role">${escapeHTML(app.role)}</div>
       <div class="card-company">${escapeHTML(app.company)}</div>
-      ${isAdmin ? `<div class="card-applicant">${escapeHTML(app.userEmail || "")}</div>` : ""}
+      ${isAdmin ? `<div class="card-applicant">${escapeHTML(app.userDisplayName || app.userEmail || "")}</div>` : ""}
       <div class="card-meta">
         <span>${escapeHTML(app.platform || "—")}</span>
         <span>${app.dateApplied || ""}</span>
@@ -748,22 +821,53 @@ async function deleteApp(id) {
 }
 
 // ---------- ADD MODAL ----------
-function openModal() {
+function openModal(prefillPlatform, prefillLink) {
   document.getElementById("modalTitle").textContent = "Add application";
   document.getElementById("appId").value = "";
   document.getElementById("company").value = "";
   document.getElementById("role").value = "";
-  document.getElementById("platform").value = "";
+  document.getElementById("platform").value = prefillPlatform || "";
   document.getElementById("dateApplied").value = new Date().toISOString().slice(0, 10);
   document.getElementById("status").value = "applied";
-  document.getElementById("link").value = "";
+  document.getElementById("link").value = prefillLink || "";
   document.getElementById("notes").value = "";
   document.getElementById("modalBackdrop").classList.add("open");
 }
 function closeModal() { document.getElementById("modalBackdrop").classList.remove("open"); }
 
-document.getElementById("addBtn").addEventListener("click", openModal);
+document.getElementById("addBtn").addEventListener("click", () => openModal());
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
+
+// ---------- QUICK LAUNCH: open the platform in a new tab, then prompt to log it when the user comes back ----------
+let pendingPlatformPrompt = null;
+document.querySelectorAll(".platform-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const platform = btn.dataset.platform;
+    const url = btn.dataset.url;
+    const proceed = confirm(
+      `Heading to ${platform}.\n\nDon't have an account there yet? Sign up first.\nAlready registered? Log in and browse roles.\n\nWhen you're done, come back to this tab — I'll ask what you applied for.`
+    );
+    if (!proceed) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+    pendingPlatformPrompt = { platform, url };
+  });
+});
+
+// When the user comes back to this tab after visiting a platform, offer to log the application.
+// We only ever read whether this tab regained focus — we have no visibility into what happened
+// on the platform's own site, and never will (that's the whole point: no credentials, no scraping).
+// We can only know the platform and today's date — company and role are always down to the user.
+window.addEventListener("focus", () => {
+  const appVisible = !document.getElementById("appScreen").classList.contains("hidden");
+  if (pendingPlatformPrompt && appVisible) {
+    const { platform, url } = pendingPlatformPrompt;
+    pendingPlatformPrompt = null;
+    if (confirm(`Welcome back! Did you apply to a role on ${platform}?\n\nI've already got the platform and date — just add the company and role.`)) {
+      openModal(platform, url);
+    }
+  }
+});
+
 document.getElementById("modalBackdrop").addEventListener("click", (e) => {
   if (e.target.id === "modalBackdrop") closeModal();
 });
@@ -797,6 +901,34 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
   a.href = url;
   a.download = "applications.csv";
   a.click();
+});
+
+// ---------- APPLICANTS PANEL (admin only) ----------
+document.getElementById("applicantsBtn").addEventListener("click", async () => {
+  const res = await fetch(`${API}/users`, { headers: authHeaders() });
+  const users = await res.json();
+  const listEl = document.getElementById("applicantsList");
+  const members = users.filter((u) => u.role !== "admin");
+  listEl.innerHTML = members.length
+    ? members.map((u) => `
+        <div class="applicant-item">
+          <div class="applicant-name">${escapeHTML(u.displayName || u.email)}</div>
+          <div class="applicant-email">${escapeHTML(u.email)}</div>
+          ${u.skills
+            ? `<div class="applicant-skills">${escapeHTML(u.skills)}</div>`
+            : `<div class="applicant-none">No skills listed yet</div>`}
+        </div>
+      `).join("")
+    : `<div class="empty-state">No applicants have signed up yet</div>`;
+  document.getElementById("applicantsModalBackdrop").classList.add("open");
+});
+document.getElementById("closeApplicantsBtn").addEventListener("click", () => {
+  document.getElementById("applicantsModalBackdrop").classList.remove("open");
+});
+document.getElementById("applicantsModalBackdrop").addEventListener("click", (e) => {
+  if (e.target.id === "applicantsModalBackdrop") {
+    document.getElementById("applicantsModalBackdrop").classList.remove("open");
+  }
 });
 
 tryResumeSession();
