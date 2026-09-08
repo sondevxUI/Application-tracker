@@ -199,10 +199,10 @@
   .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
   .auth-card button[type="submit"] { width: 100%; margin-top: 6px; }
   .password-wrap { position: relative; }
-  .password-wrap input { padding-right: 40px; }
+  .password-wrap input { padding-left: 40px; }
   .password-eye {
     position: absolute;
-    right: 10px;
+    left: 10px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
@@ -212,6 +212,7 @@
     color: var(--text-muted);
     font-size: 16px;
     line-height: 1;
+    z-index: 2;
   }
   .password-eye:hover { color: var(--accent); }
   .forgot-link {
@@ -268,6 +269,12 @@
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
   .hidden { display: none !important; }
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
   @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -287,15 +294,15 @@
       <div class="field">
         <label>Password</label>
         <div class="password-wrap">
-          <input type="password" id="authPassword" required placeholder="At least 6 characters" minlength="6" />
-          <button type="button" class="password-eye" data-target="authPassword">&#128065;</button>
+          <input type="password" id="authPassword" required placeholder="At least 6 characters" minlength="6" autocomplete="current-password" />
+          <button type="button" class="password-eye" data-target="authPassword" title="Click to show/hide password">&#128065;</button>
         </div>
       </div>
       <div class="field hidden" id="confirmPasswordField">
         <label>Confirm password</label>
         <div class="password-wrap">
-          <input type="password" id="authConfirmPassword" placeholder="Re-enter your password" minlength="6" />
-          <button type="button" class="password-eye" data-target="authConfirmPassword">&#128065;</button>
+          <input type="password" id="authConfirmPassword" placeholder="Re-enter your password" minlength="6" autocomplete="new-password" />
+          <button type="button" class="password-eye" data-target="authConfirmPassword" title="Click to show/hide password">&#128065;</button>
         </div>
       </div>
       <div class="forgot-link" id="forgotLinkWrap">
@@ -339,15 +346,15 @@
       <div class="field">
         <label>New password</label>
         <div class="password-wrap">
-          <input type="password" id="resetNewPassword" required minlength="6" placeholder="At least 6 characters" />
-          <button type="button" class="password-eye" data-target="resetNewPassword">&#128065;</button>
+          <input type="password" id="resetNewPassword" required minlength="6" placeholder="At least 6 characters" autocomplete="new-password" />
+          <button type="button" class="password-eye" data-target="resetNewPassword" title="Click to show/hide password">&#128065;</button>
         </div>
       </div>
       <div class="field">
         <label>Confirm new password</label>
         <div class="password-wrap">
-          <input type="password" id="resetConfirmPassword" required minlength="6" placeholder="Re-enter new password" />
-          <button type="button" class="password-eye" data-target="resetConfirmPassword">&#128065;</button>
+          <input type="password" id="resetConfirmPassword" required minlength="6" placeholder="Re-enter new password" autocomplete="new-password" />
+          <button type="button" class="password-eye" data-target="resetConfirmPassword" title="Click to show/hide password">&#128065;</button>
         </div>
       </div>
       <button type="submit" class="btn-primary">Reset password</button>
@@ -473,18 +480,22 @@ document.querySelectorAll(".password-eye").forEach((btn) => {
 });
 
 // ---------- LOGIN / SIGNUP TOGGLE ----------
-document.getElementById("authToggleLink").addEventListener("click", () => {
+function toggleAuthMode() {
   isRegisterMode = !isRegisterMode;
   document.getElementById("authSubmitBtn").textContent = isRegisterMode ? "Sign up" : "Log in";
   document.getElementById("confirmPasswordField").classList.toggle("hidden", !isRegisterMode);
   document.getElementById("authConfirmPassword").required = isRegisterMode;
   document.getElementById("forgotLinkWrap").classList.toggle("hidden", isRegisterMode); // reset only makes sense for existing accounts
   document.getElementById("authToggleText").innerHTML = isRegisterMode
-    ? `Already have an account? <a id="authToggleLink2">Log in</a>`
-    : `Don't have an account? <a id="authToggleLink2">Sign up</a>`;
-  document.getElementById("authToggleLink2").addEventListener("click", () => {
-    document.getElementById("authToggleLink").click();
-  });
+    ? `Already have an account? <a id="authToggleLink">Log in</a>`
+    : `Don't have an account? <a id="authToggleLink">Sign up</a>`;
+}
+// Event delegation: the link inside #authToggleText gets replaced every time the
+// mode switches, so we listen on the stable parent instead of the link itself.
+document.getElementById("authToggleText").addEventListener("click", (e) => {
+  if (e.target && e.target.id === "authToggleLink") {
+    toggleAuthMode();
+  }
 });
 
 // ---------- FORGOT / RESET NAVIGATION ----------
@@ -790,5 +801,8 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
 
 tryResumeSession();
 </script>
+
+<footer>&copy; 2026 SonDevUX. All rights reserved.</footer>
+
 </body>
 </html>
