@@ -33,15 +33,19 @@ async function initSchema() {
       id UUID PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      display_name TEXT,
+      skills TEXT,
       role TEXT NOT NULL DEFAULT 'user',
       reset_token_hash TEXT,
       reset_token_expires TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
-  // Add reset token columns if this table already existed from an earlier version
+  // Add columns if this table already existed from an earlier version
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash TEXT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS applications (
       id UUID PRIMARY KEY,
@@ -70,11 +74,12 @@ async function initSchema() {
   }
 }
 
-function appRowToJSON(row, userEmail) {
+function appRowToJSON(row, userEmail, userDisplayName) {
   return {
     id: row.id,
     userId: row.user_id,
     userEmail: userEmail || row.user_email,
+    userDisplayName: userDisplayName || row.user_display_name || null,
     company: row.company,
     role: row.role,
     platform: row.platform,
@@ -94,7 +99,7 @@ app.use(express.json());
 
 // --- Auth helpers -----------------------------------------------------
 function signToken(user) {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
+  return jwt.sign({ id: user.id, email: user.email, role: user.role, displayName: user.displayName || null }, JWT_SECRET, {
     expiresIn: "7d",
   });
 }
@@ -121,7 +126,7 @@ function adminRequired(req, res, next) {
 
 // --- Auth routes --------------------------------------------------------
 app.post("/api/auth/register", async (req, res) => {
-  const { email, password } = req.body || {};
+  const { email, password, displayName, skills } = req.body || {};
   if (!email || !password || password.length < 6) {
     return res.status(400).json({ error: "Email and a password (6+ chars) are required" });
   }
@@ -131,11 +136,13 @@ app.post("/api/auth/register", async (req, res) => {
   }
   const passwordHash = await bcrypt.hash(password, 10);
   const id = randomUUID();
+  const cleanDisplayName = displayName && displayName.trim() ? displayName.trim() : null;
+  const cleanSkills = skills && skills.trim() ? skills.trim() : null;
   await pool.query(
-    "INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, $3, 'user')",
-    [id, email, passwordHash]
+    "INSERT INTO users (id, email, password_hash, display_name, skills, role) VALUES ($1, $2, $3, $4, $5, 'user')",
+    [id, email, passwordHash, cleanDisplayName, cleanSkills]
   );
-  const user = { id, email, role: "user" };
+  const user = { id, email, displayName: cleanDisplayName, role: "user" };
   res.status(201).json({ token: signToken(user), user });
 });
 
@@ -149,7 +156,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!dbUser) return res.status(401).json({ error: "Invalid email or password" });
   const valid = await bcrypt.compare(password, dbUser.password_hash);
   if (!valid) return res.status(401).json({ error: "Invalid email or password" });
-  const user = { id: dbUser.id, email: dbUser.email, role: dbUser.role };
+  const user = { id: dbUser.id, email: dbUser.email, displayName: dbUser.display_name, role: dbUser.role };
   res.json({ token: signToken(user), user });
 });
 
@@ -232,8 +239,8 @@ function isValidApplication(body) {
 
 app.get("/api/applications", authRequired, async (req, res) => {
   const query = req.user.role === "admin"
-    ? `SELECT a.*, u.email AS user_email FROM applications a JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC`
-    : `SELECT a.*, u.email AS user_email FROM applications a JOIN users u ON u.id = a.user_id WHERE a.user_id = $1 ORDER BY a.created_at DESC`;
+    ? `SELECT a.*, u.email AS user_email, u.display_name AS user_display_name FROM applications a JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC`
+    : `SELECT a.*, u.email AS user_email, u.display_name AS user_display_name FROM applications a JOIN users u ON u.id = a.user_id WHERE a.user_id = $1 ORDER BY a.created_at DESC`;
   const params = req.user.role === "admin" ? [] : [req.user.id];
   const { rows } = await pool.query(query, params);
   res.json(rows.map((r) => appRowToJSON(r)));
@@ -241,7 +248,7 @@ app.get("/api/applications", authRequired, async (req, res) => {
 
 app.get("/api/applications/:id", authRequired, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT a.*, u.email AS user_email FROM applications a JOIN users u ON u.id = a.user_id WHERE a.id = $1`,
+    `SELECT a.*, u.email AS user_email, u.display_name AS user_display_name FROM applications a JOIN users u ON u.id = a.user_id WHERE a.id = $1`,
     [req.params.id]
   );
   const row = rows[0];
@@ -265,7 +272,7 @@ app.post("/api/applications", authRequired, async (req, res) => {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
     [id, req.user.id, company, role, platform, dateApplied, status, link, notes]
   );
-  res.status(201).json(appRowToJSON(rows[0], req.user.email));
+  res.status(201).json(appRowToJSON(rows[0], req.user.email, req.user.displayName));
 });
 
 app.patch("/api/applications/:id", authRequired, adminRequired, async (req, res) => {
@@ -305,7 +312,7 @@ app.delete("/api/applications/:id", authRequired, adminRequired, async (req, res
 
 app.get("/api/export/csv", authRequired, adminRequired, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT a.*, u.email AS user_email FROM applications a JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC`
+    `SELECT a.*, u.email AS user_email, u.display_name AS user_display_name FROM applications a JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC`
   );
   const header = ["Applicant", "Company", "Role", "Platform", "Date Applied", "Status", "Link", "Notes"];
   const escape = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
@@ -320,6 +327,24 @@ app.get("/api/export/csv", authRequired, adminRequired, async (req, res) => {
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=applications.csv");
   res.send(lines.join("\n"));
+});
+
+// Admin-only: list every registered user with their profile info (for advising which
+// platforms fit them). Passwords are never included — password_hash stays server-side only.
+app.get("/api/users", authRequired, adminRequired, async (req, res) => {
+  const { rows } = await pool.query(
+    "SELECT id, email, display_name, skills, role, created_at FROM users ORDER BY created_at DESC"
+  );
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      displayName: r.display_name,
+      skills: r.skills,
+      role: r.role,
+      createdAt: r.created_at,
+    }))
+  );
 });
 
 app.get("/api/stats", authRequired, async (req, res) => {
