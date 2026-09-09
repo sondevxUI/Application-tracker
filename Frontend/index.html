@@ -96,15 +96,29 @@
     gap: 10px;
     flex-wrap: wrap;
   }
-  .platform-btn {
+  .platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .platform-card {
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    color: var(--text);
+    border-radius: 10px;
+    padding: 12px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
   }
-  .platform-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .platform-name { font-weight: 700; font-size: 14px; }
+  .platform-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .platform-actions a.btn-ghost {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .log-applied-btn { width: 100%; }
   .board {
     display: grid;
     grid-template-columns: repeat(4, minmax(240px, 1fr));
@@ -425,12 +439,103 @@
 
   <div class="quick-launch">
     <div class="quick-launch-label">Quick apply</div>
-    <div class="quick-launch-row">
-      <button class="btn-ghost platform-btn" data-platform="Upwork" data-url="https://www.upwork.com/ab/find-work/">Upwork</button>
-      <button class="btn-ghost platform-btn" data-platform="FlexJobs" data-url="https://www.flexjobs.com/jobs">FlexJobs</button>
-      <button class="btn-ghost platform-btn" data-platform="Mercor" data-url="https://work.mercor.com/">Mercor</button>
-      <button class="btn-ghost platform-btn" data-platform="Handshake AI" data-url="https://app.handshake.ai/">Handshake AI</button>
-      <button class="btn-ghost platform-btn" data-platform="eVirtualAssistants" data-url="https://app.evirtualassistants.com/dashboard/worker/onboarding">eVirtualAssistants</button>
+    <div class="platform-grid" id="platformGrid">
+      <div class="platform-card" data-platform="Upwork">
+        <div class="platform-name">Upwork</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.upwork.com/nx/signup/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.upwork.com/ab/account-security/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Upwork">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="FlexJobs">
+        <div class="platform-name">FlexJobs</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.flexjobs.com/registration/msignup" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.flexjobs.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="FlexJobs">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Mercor">
+        <div class="platform-name">Mercor</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://work.mercor.com/login" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://work.mercor.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Mercor">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Handshake AI">
+        <div class="platform-name">Handshake AI</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://app.joinhandshake.com/register" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.joinhandshake.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Handshake AI">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="eVirtualAssistants">
+        <div class="platform-name">eVirtualAssistants</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://app.evirtualassistants.com/dashboard/worker/onboarding" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.evirtualassistants.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="eVirtualAssistants">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Prolific">
+        <div class="platform-name">Prolific</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.prolific.com/participants" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.prolific.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Prolific">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="LifePoints">
+        <div class="platform-name">LifePoints</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.lifepointspanel.com/en-us/registration" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://us.lifepointspanel.com/en-us/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="LifePoints">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="iWriter">
+        <div class="platform-name">iWriter</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.iwriter.com/register-writer;navtolistings=true" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.iwriter.com/member/writer" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="iWriter">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Swagbucks">
+        <div class="platform-name">Swagbucks</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.swagbucks.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.swagbucks.com/p/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Swagbucks">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="PrizeRebel">
+        <div class="platform-name">PrizeRebel</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.prizerebel.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.prizerebel.com/" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="PrizeRebel">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Clickworker">
+        <div class="platform-name">Clickworker</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.clickworker.com/clickworker-job/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://workplace.clickworker.com" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Clickworker">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="CrowdGen (Appen)">
+        <div class="platform-name">CrowdGen (Appen)</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://crowd.appen.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.crowdgen.com/" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="CrowdGen (Appen)">I applied — log it</button>
+      </div>
     </div>
   </div>
 
@@ -838,34 +943,12 @@ function closeModal() { document.getElementById("modalBackdrop").classList.remov
 document.getElementById("addBtn").addEventListener("click", () => openModal());
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 
-// ---------- QUICK LAUNCH: open the platform in a new tab, then prompt to log it when the user comes back ----------
-let pendingPlatformPrompt = null;
-document.querySelectorAll(".platform-btn").forEach((btn) => {
+// ---------- QUICK LAUNCH: Sign up / Log in are direct links to each platform.
+// "I applied — log it" opens the Add Application modal prefilled with that platform, no tab-focus guessing needed. ----------
+document.querySelectorAll(".log-applied-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const platform = btn.dataset.platform;
-    const url = btn.dataset.url;
-    const proceed = confirm(
-      `Heading to ${platform}.\n\nDon't have an account there yet? Sign up first.\nAlready registered? Log in and browse roles.\n\nWhen you're done, come back to this tab — I'll ask what you applied for.`
-    );
-    if (!proceed) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-    pendingPlatformPrompt = { platform, url };
+    openModal(btn.dataset.platform, "");
   });
-});
-
-// When the user comes back to this tab after visiting a platform, offer to log the application.
-// We only ever read whether this tab regained focus — we have no visibility into what happened
-// on the platform's own site, and never will (that's the whole point: no credentials, no scraping).
-// We can only know the platform and today's date — company and role are always down to the user.
-window.addEventListener("focus", () => {
-  const appVisible = !document.getElementById("appScreen").classList.contains("hidden");
-  if (pendingPlatformPrompt && appVisible) {
-    const { platform, url } = pendingPlatformPrompt;
-    pendingPlatformPrompt = null;
-    if (confirm(`Welcome back! Did you apply to a role on ${platform}?\n\nI've already got the platform and date — just add the company and role.`)) {
-      openModal(platform, url);
-    }
-  }
 });
 
 document.getElementById("modalBackdrop").addEventListener("click", (e) => {
