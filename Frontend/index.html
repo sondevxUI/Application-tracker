@@ -1019,7 +1019,6 @@ function closeModal() {
 document.getElementById("addBtn").addEventListener("click", () => openModal());
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 
-<<<<<<< HEAD
 // Autosave as the user types instead of waiting for Submit.
 ["company", "role", "platform", "dateApplied", "link", "notes"].forEach((id) => {
   document.getElementById(id).addEventListener("input", scheduleAutosave);
@@ -1047,16 +1046,6 @@ document.querySelectorAll(".log-applied-btn").forEach((btn) => {
   });
 });
 
-=======
-// ---------- QUICK LAUNCH: Sign up / Log in are direct links to each platform.
-// "I applied — log it" opens the Add Application modal prefilled with that platform, no tab-focus guessing needed. ----------
-document.querySelectorAll(".log-applied-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    openModal(btn.dataset.platform, "");
-  });
-});
-
->>>>>>> 8e56ecc3a5c2f1fc6dd6334bb06522b4973266b9
 document.getElementById("modalBackdrop").addEventListener("click", (e) => {
   if (e.target.id === "modalBackdrop") closeModal();
 });
