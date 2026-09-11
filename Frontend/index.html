@@ -190,12 +190,27 @@
   }
   .empty-state { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 8px; }
   .applicant-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--panel-border);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 10px;
   }
+  .applicant-select {
+    flex: 1;
+    text-align: left;
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+  }
+  .applicant-select:hover .applicant-name { color: var(--accent); }
+  .applicant-delete { flex-shrink: 0; }
   .applicant-name { font-weight: 600; font-size: 14px; }
   .applicant-email { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .applicant-skills { font-size: 13px; color: var(--accent); margin-top: 6px; }
@@ -620,6 +635,12 @@ let token = localStorage.getItem("at_token") || null; // Note: fine for a real d
 let currentUser = null;
 let applications = [];
 
+// Admin-only: when set, the board only shows this one user's applications —
+// this is also the hook point for per-user Gmail tracking later, since
+// everything downstream (board, stats) already keys off a single userId.
+let filterUserId = null;
+let filterUserLabel = null;
+
 // ---------- CAPTURE: track the in-progress draft so nothing gets lost ----------
 // activeDraftId is the row we created the instant the user showed intent
 // (clicked an outbound link, opened the Add form). The modal PATCHes this
@@ -869,6 +890,8 @@ document.getElementById("authForm").addEventListener("submit", async (e) => {
 document.getElementById("logoutBtn").addEventListener("click", () => {
   flushDraft(); // capture whatever's in the open form before the token disappears
   activeDraftId = null;
+  filterUserId = null;
+  filterUserLabel = null;
   token = null;
   currentUser = null;
   localStorage.removeItem("at_token");
@@ -912,11 +935,10 @@ async function fetchApplications() {
   const res = await fetch(`${API}/applications`, { headers: authHeaders() });
   applications = await res.json();
   render();
+  renderStatsForCurrentView();
 }
 
-async function fetchStats() {
-  const res = await fetch(`${API}/stats`, { headers: authHeaders() });
-  const stats = await res.json();
+function renderStatsHTML(stats) {
   document.getElementById("stats").innerHTML = STATUSES.map(s => `
     <div class="stat">
       <div class="num">${stats[s] ?? 0}</div>
@@ -930,11 +952,62 @@ async function fetchStats() {
   `;
 }
 
+// When filtered to one user, compute stats from what's already loaded
+// client-side instead of the global /api/stats endpoint, so the header
+// numbers match what's actually shown on the board.
+function computeStatsFromList(list) {
+  const stats = { total: 0 };
+  for (const s of STATUSES) stats[s] = 0;
+  for (const a of list) {
+    stats[a.status] = (stats[a.status] ?? 0) + 1;
+    stats.total++;
+  }
+  return stats;
+}
+
+async function fetchStats() {
+  if (filterUserId) {
+    renderStatsHTML(computeStatsFromList(applications.filter(a => a.userId === filterUserId)));
+    return;
+  }
+  const res = await fetch(`${API}/stats`, { headers: authHeaders() });
+  const stats = await res.json();
+  renderStatsHTML(stats);
+}
+const renderStatsForCurrentView = fetchStats;
+
+function selectUserFilter(id, label) {
+  filterUserId = id;
+  filterUserLabel = label;
+  document.getElementById("applicantsModalBackdrop").classList.remove("open");
+  render();
+  fetchStats();
+}
+
+function clearUserFilter() {
+  filterUserId = null;
+  filterUserLabel = null;
+  render();
+  fetchStats();
+}
+
+function updateBoardSubtitle() {
+  const el = document.getElementById("boardSubtitle");
+  const isAdmin = currentUser.role === "admin";
+  if (isAdmin && filterUserId) {
+    el.innerHTML = `Viewing <strong>${escapeHTML(filterUserLabel)}</strong>'s applications &nbsp; <a href="#" onclick="clearUserFilter(); return false;" style="color: var(--accent);">Clear filter</a>`;
+  } else {
+    el.textContent = isAdmin ? "Every applicant, one dashboard." : "Every application, one pipeline.";
+  }
+}
+
 function render() {
   const board = document.getElementById("board");
   const isAdmin = currentUser.role === "admin";
+  updateBoardSubtitle();
+  const scoped = isAdmin && filterUserId ? applications.filter(a => a.userId === filterUserId) : applications;
   board.innerHTML = STATUSES.map(status => {
-    const items = applications.filter(a => a.status === status);
+    const items = scoped.filter(a => a.status === status);
     return `
       <div class="column col-${status}">
         <div class="column-header">
@@ -1116,7 +1189,7 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
 });
 
 // ---------- APPLICANTS PANEL (admin only) ----------
-document.getElementById("applicantsBtn").addEventListener("click", async () => {
+async function loadApplicantsList() {
   const res = await fetch(`${API}/users`, { headers: authHeaders() });
   const users = await res.json();
   const listEl = document.getElementById("applicantsList");
@@ -1124,14 +1197,21 @@ document.getElementById("applicantsBtn").addEventListener("click", async () => {
   listEl.innerHTML = members.length
     ? members.map((u) => `
         <div class="applicant-item">
-          <div class="applicant-name">${escapeHTML(u.displayName || u.email)}</div>
-          <div class="applicant-email">${escapeHTML(u.email)}</div>
-          ${u.skills
-            ? `<div class="applicant-skills">${escapeHTML(u.skills)}</div>`
-            : `<div class="applicant-none">No skills listed yet</div>`}
+          <button type="button" class="applicant-select" onclick="selectUserFilter('${u.id}', ${JSON.stringify(u.displayName || u.email)})">
+            <div class="applicant-name">${escapeHTML(u.displayName || u.email)}</div>
+            <div class="applicant-email">${escapeHTML(u.email)}</div>
+            ${u.skills
+              ? `<div class="applicant-skills">${escapeHTML(u.skills)}</div>`
+              : `<div class="applicant-none">No skills listed yet</div>`}
+          </button>
+          <button type="button" class="btn-ghost btn-sm applicant-delete" onclick="deleteUser('${u.id}', ${JSON.stringify(u.displayName || u.email)})">Delete</button>
         </div>
       `).join("")
     : `<div class="empty-state">No applicants have signed up yet</div>`;
+}
+
+document.getElementById("applicantsBtn").addEventListener("click", async () => {
+  await loadApplicantsList();
   document.getElementById("applicantsModalBackdrop").classList.add("open");
 });
 document.getElementById("closeApplicantsBtn").addEventListener("click", () => {
@@ -1142,6 +1222,22 @@ document.getElementById("applicantsModalBackdrop").addEventListener("click", (e)
     document.getElementById("applicantsModalBackdrop").classList.remove("open");
   }
 });
+
+// Deletes the account (and, via ON DELETE CASCADE on the backend, all of
+// their applications). Confirm first — this can't be undone.
+async function deleteUser(id, label) {
+  if (!confirm(`Delete ${label}'s account? This also deletes all of their applications. This can't be undone.`)) return;
+  const res = await fetch(`${API}/users/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || "Could not delete that user.");
+    return;
+  }
+  if (filterUserId === id) clearUserFilter();
+  await loadApplicantsList();
+  await fetchApplications();
+  await fetchStats();
+}
 
 tryResumeSession();
 </script>
