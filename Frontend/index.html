@@ -159,8 +159,10 @@
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 10px;
+    cursor: pointer;
   }
   .card:hover { border-color: var(--accent); }
+  .card-actions select, .card-actions button { cursor: pointer; }
   .card-role { font-weight: 600; font-size: 14px; }
   .card-company { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
   .card-applicant {
@@ -947,7 +949,7 @@ function render() {
 
 function cardHTML(app, isAdmin) {
   return `
-    <div class="card" data-id="${app.id}">
+    <div class="card" data-id="${app.id}" onclick="openExistingApp('${app.id}')" title="Click to edit">
       <div class="card-role">${escapeHTML(app.role)}</div>
       <div class="card-company">${escapeHTML(app.company)}</div>
       ${isAdmin ? `<div class="card-applicant">${escapeHTML(app.userDisplayName || app.userEmail || "")}</div>` : ""}
@@ -957,10 +959,10 @@ function cardHTML(app, isAdmin) {
       </div>
       ${isAdmin ? `
       <div class="card-actions">
-        <select onchange="updateStatus('${app.id}', this.value)">
+        <select onclick="event.stopPropagation()" onchange="event.stopPropagation(); updateStatus('${app.id}', this.value)">
           ${STATUSES.map(s => `<option value="${s}" ${s === app.status ? "selected" : ""}>${STATUS_LABELS[s]}</option>`).join("")}
         </select>
-        <button class="btn-ghost btn-sm" onclick="deleteApp('${app.id}')">Delete</button>
+        <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); deleteApp('${app.id}')">Delete</button>
       </div>` : ""}
     </div>
   `;
@@ -1008,6 +1010,31 @@ async function openModal(prefillPlatform, prefillLink) {
   activeDraftId = await createDraft(prefillPlatform, prefillLink);
   await fetchApplications(); // so the draft shows up on the board right away
   await fetchStats();
+}
+
+// Reopen an existing row (a draft you started, or — for admins — anyone's
+// row) for editing instead of creating a new one. Owners can finish their
+// own drafts this way; the backend already allows owners to PATCH their
+// own applications.
+function openExistingApp(id) {
+  const app = applications.find((a) => a.id === id);
+  if (!app) return;
+  const isAdmin = currentUser.role === "admin";
+
+  document.getElementById("modalTitle").textContent = app.status === "draft" ? "Finish application" : "Edit application";
+  document.getElementById("appId").value = app.id;
+  document.getElementById("company").value = app.company === "(pending)" || app.company === "(untitled)" ? "" : app.company;
+  document.getElementById("role").value = (app.role || "").endsWith("application") && app.status === "draft" ? "" : app.role;
+  document.getElementById("platform").value = app.platform || "";
+  document.getElementById("dateApplied").value = app.dateApplied || new Date().toISOString().slice(0, 10);
+  // Only auto-finalize a draft to "applied". If admin has already moved it
+  // further (interviewing/offer/rejected), editing details shouldn't reset that.
+  document.getElementById("status").value = isAdmin ? app.status : (app.status === "draft" ? "applied" : app.status);
+  document.getElementById("link").value = app.link || "";
+  document.getElementById("notes").value = app.notes || "";
+
+  activeDraftId = app.id; // submit PATCHes this row instead of creating a new one
+  document.getElementById("modalBackdrop").classList.add("open");
 }
 
 function closeModal() {
