@@ -96,18 +96,32 @@
     gap: 10px;
     flex-wrap: wrap;
   }
-  .platform-btn {
+  .platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .platform-card {
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    color: var(--text);
+    border-radius: 10px;
+    padding: 12px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
   }
-  .platform-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .platform-name { font-weight: 700; font-size: 14px; }
+  .platform-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .platform-actions a.btn-ghost {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .log-applied-btn { width: 100%; }
   .board {
     display: grid;
-    grid-template-columns: repeat(4, minmax(240px, 1fr));
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
     gap: 16px;
     padding: 20px 32px 40px;
     overflow-x: auto;
@@ -134,6 +148,7 @@
     padding: 2px 8px;
     border-radius: 20px;
   }
+  .col-draft .column-title { color: var(--text-muted); font-style: italic; }
   .col-applied .column-title { color: var(--text); }
   .col-interviewing .column-title { color: var(--accent); }
   .col-offer .column-title { color: var(--offer); }
@@ -425,12 +440,103 @@
 
   <div class="quick-launch">
     <div class="quick-launch-label">Quick apply</div>
-    <div class="quick-launch-row">
-      <button class="btn-ghost platform-btn" data-platform="Upwork" data-url="https://www.upwork.com/ab/find-work/">Upwork</button>
-      <button class="btn-ghost platform-btn" data-platform="FlexJobs" data-url="https://www.flexjobs.com/jobs">FlexJobs</button>
-      <button class="btn-ghost platform-btn" data-platform="Mercor" data-url="https://work.mercor.com/">Mercor</button>
-      <button class="btn-ghost platform-btn" data-platform="Handshake AI" data-url="https://app.handshake.ai/">Handshake AI</button>
-      <button class="btn-ghost platform-btn" data-platform="eVirtualAssistants" data-url="https://app.evirtualassistants.com/dashboard/worker/onboarding">eVirtualAssistants</button>
+    <div class="platform-grid" id="platformGrid">
+      <div class="platform-card" data-platform="Upwork">
+        <div class="platform-name">Upwork</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.upwork.com/nx/signup/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.upwork.com/ab/account-security/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Upwork">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="FlexJobs">
+        <div class="platform-name">FlexJobs</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.flexjobs.com/registration/msignup" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.flexjobs.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="FlexJobs">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Mercor">
+        <div class="platform-name">Mercor</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://work.mercor.com/login" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://work.mercor.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Mercor">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Handshake AI">
+        <div class="platform-name">Handshake AI</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://app.joinhandshake.com/register" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.joinhandshake.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Handshake AI">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="eVirtualAssistants">
+        <div class="platform-name">eVirtualAssistants</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://app.evirtualassistants.com/dashboard/worker/onboarding" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.evirtualassistants.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="eVirtualAssistants">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Prolific">
+        <div class="platform-name">Prolific</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.prolific.com/participants" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.prolific.com/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Prolific">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="LifePoints">
+        <div class="platform-name">LifePoints</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.lifepointspanel.com/en-us/registration" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://us.lifepointspanel.com/en-us/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="LifePoints">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="iWriter">
+        <div class="platform-name">iWriter</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.iwriter.com/register-writer;navtolistings=true" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.iwriter.com/member/writer" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="iWriter">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Swagbucks">
+        <div class="platform-name">Swagbucks</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.swagbucks.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.swagbucks.com/p/login" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Swagbucks">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="PrizeRebel">
+        <div class="platform-name">PrizeRebel</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.prizerebel.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://www.prizerebel.com/" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="PrizeRebel">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="Clickworker">
+        <div class="platform-name">Clickworker</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://www.clickworker.com/clickworker-job/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://workplace.clickworker.com" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="Clickworker">I applied — log it</button>
+      </div>
+      <div class="platform-card" data-platform="CrowdGen (Appen)">
+        <div class="platform-name">CrowdGen (Appen)</div>
+        <div class="platform-actions">
+          <a class="btn-ghost btn-sm" href="https://crowd.appen.com/" target="_blank" rel="noopener noreferrer">Sign up</a>
+          <a class="btn-ghost btn-sm" href="https://app.crowdgen.com/" target="_blank" rel="noopener noreferrer">Log in</a>
+        </div>
+        <button class="btn-primary btn-sm log-applied-btn" data-platform="CrowdGen (Appen)">I applied — log it</button>
+      </div>
     </div>
   </div>
 
@@ -505,12 +611,73 @@
 
 <script>
 const API = "https://application-tracker-25n2.onrender.com/api";
-const STATUSES = ["applied", "interviewing", "offer", "rejected"];
-const STATUS_LABELS = { applied: "Applied", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected" };
+const STATUSES = ["draft", "applied", "interviewing", "offer", "rejected"];
+const STATUS_LABELS = { draft: "Draft", applied: "Applied", interviewing: "Interviewing", offer: "Offer", rejected: "Rejected" };
 
 let token = localStorage.getItem("at_token") || null; // Note: fine for a real deployed site (not a Claude artifact)
 let currentUser = null;
 let applications = [];
+
+// ---------- CAPTURE: track the in-progress draft so nothing gets lost ----------
+// activeDraftId is the row we created the instant the user showed intent
+// (clicked an outbound link, opened the Add form). The modal PATCHes this
+// row as they type and finalizes it on submit, instead of creating a new
+// row from scratch — so an abandoned form still leaves a real record behind.
+let activeDraftId = null;
+let autosaveTimer = null;
+
+async function createDraft(platform, link) {
+  try {
+    const res = await fetch(`${API}/applications/capture`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ platform: platform || "", link: link || "" }),
+    });
+    if (!res.ok) return null;
+    const row = await res.json();
+    return row.id;
+  } catch {
+    return null; // offline / network hiccup — don't block the user's click
+  }
+}
+
+function currentFormPayload() {
+  return {
+    company: document.getElementById("company").value,
+    role: document.getElementById("role").value,
+    platform: document.getElementById("platform").value,
+    dateApplied: document.getElementById("dateApplied").value,
+    link: document.getElementById("link").value,
+    notes: document.getElementById("notes").value,
+  };
+}
+
+// keepalive lets this request finish even if the tab is closing/navigating —
+// unlike sendBeacon, fetch(keepalive) still lets us send the auth header.
+function flushDraft(extra = {}) {
+  if (!activeDraftId || !token) return;
+  const payload = { ...currentFormPayload(), ...extra };
+  fetch(`${API}/applications/${activeDraftId}`, {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function scheduleAutosave() {
+  if (!activeDraftId) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => flushDraft(), 1200);
+}
+
+// Safety net: catch tab close, browser back, and phone app-switch — not just
+// the logout button. visibilitychange fires reliably on mobile where
+// beforeunload often doesn't.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushDraft();
+});
+window.addEventListener("pagehide", () => flushDraft());
 let isRegisterMode = false;
 
 // ---------- SCREEN SWITCHING ----------
@@ -698,6 +865,8 @@ document.getElementById("authForm").addEventListener("submit", async (e) => {
 });
 
 document.getElementById("logoutBtn").addEventListener("click", () => {
+  flushDraft(); // capture whatever's in the open form before the token disappears
+  activeDraftId = null;
   token = null;
   currentUser = null;
   localStorage.removeItem("at_token");
@@ -821,7 +990,10 @@ async function deleteApp(id) {
 }
 
 // ---------- ADD MODAL ----------
-function openModal(prefillPlatform, prefillLink) {
+// Opening this modal immediately creates a draft row in the background —
+// the record exists before a single field is typed. Every keystroke
+// autosaves it, and submit just finalizes it to a real status.
+async function openModal(prefillPlatform, prefillLink) {
   document.getElementById("modalTitle").textContent = "Add application";
   document.getElementById("appId").value = "";
   document.getElementById("company").value = "";
@@ -832,40 +1004,46 @@ function openModal(prefillPlatform, prefillLink) {
   document.getElementById("link").value = prefillLink || "";
   document.getElementById("notes").value = "";
   document.getElementById("modalBackdrop").classList.add("open");
+
+  activeDraftId = await createDraft(prefillPlatform, prefillLink);
+  await fetchApplications(); // so the draft shows up on the board right away
+  await fetchStats();
 }
-function closeModal() { document.getElementById("modalBackdrop").classList.remove("open"); }
+
+function closeModal() {
+  flushDraft(); // save whatever's there even on a plain Cancel/close
+  activeDraftId = null;
+  document.getElementById("modalBackdrop").classList.remove("open");
+}
 
 document.getElementById("addBtn").addEventListener("click", () => openModal());
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 
-// ---------- QUICK LAUNCH: open the platform in a new tab, then prompt to log it when the user comes back ----------
-let pendingPlatformPrompt = null;
-document.querySelectorAll(".platform-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const platform = btn.dataset.platform;
-    const url = btn.dataset.url;
-    const proceed = confirm(
-      `Heading to ${platform}.\n\nDon't have an account there yet? Sign up first.\nAlready registered? Log in and browse roles.\n\nWhen you're done, come back to this tab — I'll ask what you applied for.`
-    );
-    if (!proceed) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-    pendingPlatformPrompt = { platform, url };
+// Autosave as the user types instead of waiting for Submit.
+["company", "role", "platform", "dateApplied", "link", "notes"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", scheduleAutosave);
+  document.getElementById(id).addEventListener("blur", () => flushDraft());
+});
+
+// ---------- QUICK LAUNCH: capture the instant intent is shown ----------
+// Sign up / Log in links: fire a draft capture the moment they're clicked,
+// before the new tab even finishes opening — this is the "first knock"
+// leak (user applies externally and never comes back to log it manually).
+document.querySelectorAll(".platform-card .platform-actions a").forEach((link) => {
+  link.addEventListener("click", () => {
+    const platform = link.closest(".platform-card")?.dataset.platform || "";
+    createDraft(platform, link.href).then(() => {
+      fetchApplications();
+      fetchStats();
+    });
   });
 });
 
-// When the user comes back to this tab after visiting a platform, offer to log the application.
-// We only ever read whether this tab regained focus — we have no visibility into what happened
-// on the platform's own site, and never will (that's the whole point: no credentials, no scraping).
-// We can only know the platform and today's date — company and role are always down to the user.
-window.addEventListener("focus", () => {
-  const appVisible = !document.getElementById("appScreen").classList.contains("hidden");
-  if (pendingPlatformPrompt && appVisible) {
-    const { platform, url } = pendingPlatformPrompt;
-    pendingPlatformPrompt = null;
-    if (confirm(`Welcome back! Did you apply to a role on ${platform}?\n\nI've already got the platform and date — just add the company and role.`)) {
-      openModal(platform, url);
-    }
-  }
+// "I applied — log it" opens the Add Application modal prefilled with that platform.
+document.querySelectorAll(".log-applied-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    openModal(btn.dataset.platform, "");
+  });
 });
 
 document.getElementById("modalBackdrop").addEventListener("click", (e) => {
@@ -875,20 +1053,27 @@ document.getElementById("modalBackdrop").addEventListener("click", (e) => {
 document.getElementById("appForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const payload = {
-    company: document.getElementById("company").value,
-    role: document.getElementById("role").value,
-    platform: document.getElementById("platform").value,
-    dateApplied: document.getElementById("dateApplied").value,
+    ...currentFormPayload(),
     status: document.getElementById("status").value,
-    link: document.getElementById("link").value,
-    notes: document.getElementById("notes").value,
   };
-  await fetch(`${API}/applications`, {
-    method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(payload),
-  });
-  closeModal();
+  clearTimeout(autosaveTimer);
+
+  if (activeDraftId) {
+    // Finalize the existing draft row rather than creating a duplicate.
+    await fetch(`${API}/applications/${activeDraftId}`, {
+      method: "PATCH",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+  } else {
+    await fetch(`${API}/applications`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    });
+  }
+  activeDraftId = null;
+  document.getElementById("modalBackdrop").classList.remove("open");
   await fetchApplications();
   await fetchStats();
 });

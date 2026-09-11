@@ -24,7 +24,10 @@ const pool = new Pool({
   ssl: DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false },
 });
 
-const VALID_STATUSES = ["applied", "interviewing", "offer", "rejected"];
+// "draft" is a pipeline stage, not a final outcome: it's what we create the
+// instant someone shows intent (clicks an outbound apply link, opens the
+// Add form) so nothing is lost if they never come back to finish it.
+const VALID_STATUSES = ["draft", "applied", "interviewing", "offer", "rejected"];
 
 // --- Schema setup -------------------------------------------------
 async function initSchema() {
@@ -227,11 +230,16 @@ app.post("/api/auth/reset-password", async (req, res) => {
 });
 
 // --- Application validation ---------------------------------------------
+// Drafts are allowed to be incomplete on purpose — we'd rather store a
+// half-filled row than lose the application entirely. company/role are only
+// required once a row is claiming to be a real (non-draft) status.
 function isValidApplication(body) {
   if (!body || typeof body !== "object") return false;
-  if (!body.company || typeof body.company !== "string") return false;
-  if (!body.role || typeof body.role !== "string") return false;
   if (body.status && !VALID_STATUSES.includes(body.status)) return false;
+  if (body.status !== "draft") {
+    if (!body.company || typeof body.company !== "string") return false;
+    if (!body.role || typeof body.role !== "string") return false;
+  }
   return true;
 }
 
@@ -264,7 +272,14 @@ app.post("/api/applications", authRequired, async (req, res) => {
     return res.status(400).json({ error: "company and role are required; status must be one of " + VALID_STATUSES.join(", ") });
   }
   const id = randomUUID();
-  const { company, role, platform = "", status = "applied", link = "", notes = "" } = req.body;
+  const {
+    company = "(untitled)",
+    role = "(untitled)",
+    platform = "",
+    status = "applied",
+    link = "",
+    notes = "",
+  } = req.body;
   const dateApplied = req.body.dateApplied || new Date().toISOString().slice(0, 10);
 
   const { rows } = await pool.query(
@@ -275,9 +290,34 @@ app.post("/api/applications", authRequired, async (req, res) => {
   res.status(201).json(appRowToJSON(rows[0], req.user.email, req.user.displayName));
 });
 
-app.patch("/api/applications/:id", authRequired, adminRequired, async (req, res) => {
+// Fire-and-forget capture: called the instant a user shows intent (clicks an
+// outbound "Sign up / Log in" link, or opens the Add form) — before they've
+// typed anything. Creates a minimal draft row so we have a record even if
+// they never come back. No company/role required.
+app.post("/api/applications/capture", authRequired, async (req, res) => {
+  const { platform = "", link = "" } = req.body || {};
+  const id = randomUUID();
+  const company = "(pending)";
+  const role = platform ? `${platform} application` : "(pending)";
+  const dateApplied = new Date().toISOString().slice(0, 10);
+
+  const { rows } = await pool.query(
+    `INSERT INTO applications (id, user_id, company, role, platform, date_applied, status, link, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,'draft',$7,'')
+     RETURNING *`,
+    [id, req.user.id, company, role, platform, dateApplied, link]
+  );
+  res.status(201).json(appRowToJSON(rows[0], req.user.email, req.user.displayName));
+});
+
+// Owners can update their own rows (needed so a draft can be completed or
+// autosaved); admins can update anyone's.
+app.patch("/api/applications/:id", authRequired, async (req, res) => {
   const { rows: existingRows } = await pool.query("SELECT * FROM applications WHERE id = $1", [req.params.id]);
   if (!existingRows[0]) return res.status(404).json({ error: "Application not found" });
+  if (req.user.role !== "admin" && existingRows[0].user_id !== req.user.id) {
+    return res.status(403).json({ error: "Not your application" });
+  }
 
   if (req.body.status && !VALID_STATUSES.includes(req.body.status)) {
     return res.status(400).json({ error: "status must be one of " + VALID_STATUSES.join(", ") });
