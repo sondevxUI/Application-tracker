@@ -332,6 +332,28 @@
     z-index: 10;
   }
   .modal-backdrop.open { display: flex; }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 18px 0;
+  }
+  .pricing-card {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pricing-card.featured { border-color: var(--accent); }
+  .pricing-name { font-weight: 600; font-size: 14px; }
+  .pricing-price { font-size: 22px; font-weight: 700; }
+  .pricing-price span { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+  .pricing-desc { font-size: 12px; color: var(--text-muted); flex: 1; }
+  @media (max-width: 640px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+  }
   .modal {
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -459,6 +481,7 @@
         <span id="userEmailLabel"></span>
         <span class="role-badge" id="roleBadge"></span>
         <button class="btn-ghost btn-sm" id="gmailBtn">Connect Gmail</button>
+        <button class="btn-primary btn-sm hidden" id="upgradeBtn">Upgrade</button>
         <button class="btn-ghost btn-sm" id="logoutBtn">Log out</button>
       </div>
     </div>
@@ -589,6 +612,37 @@
   </div>
 </div>
 
+<!-- PRICING MODAL -->
+<div class="modal-backdrop" id="pricingModalBackdrop">
+  <div class="modal" style="max-width: 640px;">
+    <h2>Upgrade to Premium</h2>
+    <p style="color: var(--text-muted); font-size: 13px; margin-top: -8px;">Unlimited applications + Gmail auto-detection of replies.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-name">Day pass</div>
+        <div class="pricing-price">$5<span>/ one day</span></div>
+        <div class="pricing-desc">One-time charge. 24 hours of full access — good for a focused application push.</div>
+        <button type="button" class="btn-primary pricing-choose" data-plan="daily">Choose</button>
+      </div>
+      <div class="pricing-card featured">
+        <div class="pricing-name">Monthly</div>
+        <div class="pricing-price">$10<span>/ month</span></div>
+        <div class="pricing-desc">Recurring subscription. Cancel anytime from Manage billing.</div>
+        <button type="button" class="btn-primary pricing-choose" data-plan="monthly">Choose</button>
+      </div>
+      <div class="pricing-card">
+        <div class="pricing-name">Yearly</div>
+        <div class="pricing-price">$100<span>/ year</span></div>
+        <div class="pricing-desc">Recurring subscription, ~2 months free vs monthly.</div>
+        <button type="button" class="btn-primary pricing-choose" data-plan="yearly">Choose</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="closePricingBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD/EDIT MODAL -->
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal">
@@ -666,7 +720,13 @@ async function createDraft(platform, link) {
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ platform: platform || "", link: link || "" }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 402) {
+        const data = await res.json().catch(() => ({}));
+        showGmailStatusLine(data.error || "Free plan limit reached — upgrade to add more applications.", "error");
+      }
+      return null;
+    }
     const row = await res.json();
     return row.id;
   } catch {
@@ -920,11 +980,24 @@ async function afterLogin() {
   await fetchApplications();
   await fetchStats();
   await refreshGmailStatus();
+  await refreshBillingStatus();
+  if (window.__billingResult === "success") {
+    showGmailStatusLine("You're on Premium now — Gmail auto-detection and unlimited applications are unlocked.", "connected");
+    await refreshBillingStatus();
+    window.__billingResult = null;
+  } else if (window.__billingResult === "cancelled") {
+    showGmailStatusLine("Checkout cancelled — no changes made.", "");
+    window.__billingResult = null;
+  }
   if (window.__gmailJustConnected) {
     showGmailStatusLine("Gmail connected — click \"Check my Gmail\" to scan for updates.", "connected");
     window.__gmailJustConnected = false;
   } else if (window.__gmailConnectError) {
-    showGmailStatusLine(`Gmail connection failed (${window.__gmailConnectError}). Try again.`, "error");
+    if (window.__gmailConnectError === "premium_required") {
+      showGmailStatusLine("Gmail auto-detection is a premium feature — click Upgrade to unlock it.", "error");
+    } else {
+      showGmailStatusLine(`Gmail connection failed (${window.__gmailConnectError}). Try again.`, "error");
+    }
     window.__gmailConnectError = null;
   }
 }
@@ -985,6 +1058,92 @@ document.getElementById("gmailBtn").addEventListener("click", async () => {
     btn.textContent = "Check my Gmail";
   }
 });
+
+// ---------- BILLING ----------
+async function refreshBillingStatus() {
+  const res = await fetch(`${API}/billing/status`, { headers: authHeaders() });
+  const data = await res.json();
+  const btn = document.getElementById("upgradeBtn");
+  const isAdmin = currentUser.role === "admin";
+  if (isAdmin) {
+    btn.classList.add("hidden"); // admin isn't a customer of their own tool
+    return data;
+  }
+  if (data.premium) {
+    btn.textContent = "Manage billing";
+    btn.classList.remove("hidden");
+  } else {
+    btn.textContent = `Upgrade (${data.applicationCount}/${data.freeLimit} used)`;
+    btn.classList.remove("hidden");
+  }
+  return data;
+}
+
+document.getElementById("upgradeBtn").addEventListener("click", async () => {
+  const status = await refreshBillingStatus();
+  if (status.premium) {
+    // Already premium: this button goes straight to Stripe's billing portal.
+    const btn = document.getElementById("upgradeBtn");
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${API}/billing/portal`, { method: "POST", headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) {
+        showGmailStatusLine(data.error || "Couldn't open billing right now.", "error");
+        return;
+      }
+      window.location.href = data.url;
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
+  document.getElementById("pricingModalBackdrop").classList.add("open");
+});
+
+document.getElementById("closePricingBtn").addEventListener("click", () => {
+  document.getElementById("pricingModalBackdrop").classList.remove("open");
+});
+document.getElementById("pricingModalBackdrop").addEventListener("click", (e) => {
+  if (e.target.id === "pricingModalBackdrop") e.target.classList.remove("open");
+});
+
+document.querySelectorAll(".pricing-choose").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Redirecting…";
+    try {
+      const res = await fetch(`${API}/billing/checkout`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ plan: btn.dataset.plan }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showGmailStatusLine(data.error || "Couldn't start checkout.", "error");
+        btn.disabled = false;
+        btn.textContent = "Choose";
+        return;
+      }
+      window.location.href = data.url; // Stripe Checkout
+    } catch {
+      showGmailStatusLine("Couldn't reach the server to start checkout.", "error");
+      btn.disabled = false;
+      btn.textContent = "Choose";
+    }
+  });
+});
+
+// After a Stripe Checkout/Portal round trip: ?billing=success or ?billing=cancelled
+(function handleBillingRedirectResult() {
+  const params = new URLSearchParams(window.location.search);
+  const billingResult = params.get("billing");
+  if (!billingResult) return;
+  window.__billingResult = billingResult;
+  params.delete("billing");
+  const clean = window.location.pathname + (params.toString() ? `?${params}` : "");
+  window.history.replaceState({}, "", clean);
+})();
 
 // After the OAuth round trip, Google/our backend redirects back here with
 // ?gmail=connected or ?gmail=error — surface that once, then clean the URL.
@@ -1250,24 +1409,31 @@ document.getElementById("appForm").addEventListener("submit", async (e) => {
   };
   clearTimeout(autosaveTimer);
 
+  let res;
   if (activeDraftId) {
     // Finalize the existing draft row rather than creating a duplicate.
-    await fetch(`${API}/applications/${activeDraftId}`, {
+    res = await fetch(`${API}/applications/${activeDraftId}`, {
       method: "PATCH",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
   } else {
-    await fetch(`${API}/applications`, {
+    res = await fetch(`${API}/applications`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
   }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    showGmailStatusLine(data.error || "Couldn't save that application.", "error");
+    return; // leave the modal open so nothing typed gets lost
+  }
   activeDraftId = null;
   document.getElementById("modalBackdrop").classList.remove("open");
   await fetchApplications();
   await fetchStats();
+  await refreshBillingStatus();
 });
 
 document.getElementById("exportBtn").addEventListener("click", async () => {
