@@ -50,6 +50,14 @@
     align-items: center;
     gap: 10px;
   }
+  .gmail-status-line {
+    padding: 0 32px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .gmail-status-line a { color: var(--accent); cursor: pointer; }
+  .gmail-status-line.connected { color: var(--accent); }
+  .gmail-status-line.error { color: var(--danger); }
   .role-badge {
     font-size: 11px;
     padding: 2px 8px;
@@ -450,10 +458,12 @@
       <div class="user-chip">
         <span id="userEmailLabel"></span>
         <span class="role-badge" id="roleBadge"></span>
+        <button class="btn-ghost btn-sm" id="gmailBtn">Connect Gmail</button>
         <button class="btn-ghost btn-sm" id="logoutBtn">Log out</button>
       </div>
     </div>
   </header>
+  <div id="gmailStatusLine" class="gmail-status-line hidden"></div>
 
   <div class="quick-launch">
     <div class="quick-launch-label">Quick apply</div>
@@ -909,7 +919,89 @@ async function afterLogin() {
   document.getElementById("statusFieldWrap").classList.toggle("hidden", currentUser.role !== "admin");
   await fetchApplications();
   await fetchStats();
+  await refreshGmailStatus();
+  if (window.__gmailJustConnected) {
+    showGmailStatusLine("Gmail connected — click \"Check my Gmail\" to scan for updates.", "connected");
+    window.__gmailJustConnected = false;
+  } else if (window.__gmailConnectError) {
+    showGmailStatusLine(`Gmail connection failed (${window.__gmailConnectError}). Try again.`, "error");
+    window.__gmailConnectError = null;
+  }
 }
+
+// ---------- GMAIL ----------
+// Each user (including admin) connects their own Gmail — nobody reads
+// anyone else's inbox. "Connect Gmail" is a real page navigation (not
+// fetch) since it has to end up on Google's consent screen, so the JWT
+// rides along as a query param instead of a header; the server verifies
+// it before building the Google OAuth URL.
+async function refreshGmailStatus() {
+  const res = await fetch(`${API}/gmail/status`, { headers: authHeaders() });
+  const data = await res.json();
+  const btn = document.getElementById("gmailBtn");
+  if (data.connected) {
+    btn.textContent = "Check my Gmail";
+    btn.title = data.email ? `Connected: ${data.email}` : "Gmail connected";
+  } else {
+    btn.textContent = "Connect Gmail";
+    btn.title = "Connect your Gmail to auto-detect replies";
+  }
+  return data;
+}
+
+function showGmailStatusLine(text, kind) {
+  const el = document.getElementById("gmailStatusLine");
+  el.textContent = text;
+  el.className = "gmail-status-line" + (kind ? ` ${kind}` : "");
+  el.classList.remove("hidden");
+}
+
+document.getElementById("gmailBtn").addEventListener("click", async () => {
+  const status = await refreshGmailStatus();
+  if (!status.connected) {
+    window.location.href = `${API}/gmail/connect?token=${encodeURIComponent(token)}`;
+    return;
+  }
+  const btn = document.getElementById("gmailBtn");
+  btn.disabled = true;
+  btn.textContent = "Checking…";
+  try {
+    const res = await fetch(`${API}/gmail/check`, { method: "POST", headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) {
+      showGmailStatusLine(data.error || "Couldn't check Gmail right now.", "error");
+    } else if (data.updated.length === 0) {
+      showGmailStatusLine(`Checked ${data.checked} application${data.checked === 1 ? "" : "s"} — no new updates found.`);
+    } else {
+      const lines = data.updated.map((u) => `${u.company} → ${STATUS_LABELS[u.to]}`).join(", ");
+      showGmailStatusLine(`Updated: ${lines}`, "connected");
+      await fetchApplications();
+      await fetchStats();
+    }
+  } catch {
+    showGmailStatusLine("Couldn't reach the server to check Gmail.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Check my Gmail";
+  }
+});
+
+// After the OAuth round trip, Google/our backend redirects back here with
+// ?gmail=connected or ?gmail=error — surface that once, then clean the URL.
+(function handleGmailRedirectResult() {
+  const params = new URLSearchParams(window.location.search);
+  const gmailResult = params.get("gmail");
+  if (!gmailResult) return;
+  if (gmailResult === "connected") {
+    window.__gmailJustConnected = true;
+  } else if (gmailResult === "error") {
+    window.__gmailConnectError = params.get("reason") || "unknown_error";
+  }
+  params.delete("gmail");
+  params.delete("reason");
+  const clean = window.location.pathname + (params.toString() ? `?${params}` : "");
+  window.history.replaceState({}, "", clean);
+})();
 
 async function tryResumeSession() {
   if (!token) return showAuthScreen();

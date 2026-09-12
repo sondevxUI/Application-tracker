@@ -48,6 +48,14 @@ async function initSchema() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash TEXT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;`);
+  // Gmail integration: each user (including admin) can connect their own
+  // Gmail via OAuth. We only ever store the refresh_token (never the
+  // password/access_token) and the connected address, so we can re-request
+  // a fresh access token whenever "Check my Gmail" is clicked.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email TEXT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_connected_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_last_checked_at TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS skills TEXT;`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS applications (
@@ -402,6 +410,219 @@ app.delete("/api/users/:id", authRequired, adminRequired, async (req, res) => {
   }
   await pool.query("DELETE FROM users WHERE id = $1", [req.params.id]);
   res.status(204).end();
+});
+
+// ---------------------------------------------------------------------
+// Gmail integration
+// Each user connects their own Gmail (read-only) via Google OAuth. We
+// store only the refresh_token — never a password — and use it on demand
+// (when the user clicks "Check my Gmail") to search their inbox for
+// replies related to their tracked applications, then update status
+// automatically. Admins can see the results because they can already
+// filter the board down to any one user (see /api/users + filterUserId
+// on the frontend) — no separate "admin sees everyone's inbox" endpoint,
+// each admin still only ever touches their own Gmail account.
+// ---------------------------------------------------------------------
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://application-tracker.netlify.app";
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+
+// Step 1: user clicks "Connect Gmail". This is a real page navigation (not
+// fetch), so it can't carry an Authorization header — the frontend passes
+// the JWT as a query param instead, verified here, then re-signed as a
+// short-lived `state` value Google hands back to us in the callback.
+app.get("/api/gmail/connect", (req, res) => {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_REDIRECT_URI) {
+    return res.status(500).send("Gmail integration isn't configured yet (missing GOOGLE_CLIENT_ID/GOOGLE_REDIRECT_URI on the server).");
+  }
+  let uid;
+  try {
+    uid = jwt.verify(req.query.token, JWT_SECRET).id;
+  } catch {
+    return res.status(401).send("Your session expired — go back and log in again before connecting Gmail.");
+  }
+  const state = jwt.sign({ uid }, JWT_SECRET, { expiresIn: "10m" });
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", GOOGLE_REDIRECT_URI);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", GMAIL_SCOPE);
+  authUrl.searchParams.set("access_type", "offline"); // needed to get a refresh_token back
+  authUrl.searchParams.set("prompt", "consent"); // forces refresh_token even on repeat connects
+  authUrl.searchParams.set("state", state);
+  res.redirect(authUrl.toString());
+});
+
+// Step 2: Google redirects the browser back here with a one-time code.
+app.get("/api/gmail/callback", async (req, res) => {
+  const { code, state, error } = req.query;
+  if (error) return res.redirect(`${FRONTEND_URL}/?gmail=error&reason=${encodeURIComponent(error)}`);
+  let uid;
+  try {
+    uid = jwt.verify(state, JWT_SECRET).uid;
+  } catch {
+    return res.redirect(`${FRONTEND_URL}/?gmail=error&reason=expired_state`);
+  }
+
+  try {
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: "authorization_code",
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(tokenData.error_description || tokenData.error || "token exchange failed");
+
+    // refresh_token is only sent the first time (or after prompt=consent),
+    // so don't overwrite an existing one with nothing on a repeat connect.
+    let gmailEmail = null;
+    if (tokenData.id_token) {
+      const payload = JSON.parse(Buffer.from(tokenData.id_token.split(".")[1], "base64url").toString());
+      gmailEmail = payload.email || null;
+    }
+
+    if (tokenData.refresh_token) {
+      await pool.query(
+        `UPDATE users SET gmail_refresh_token = $1, gmail_email = $2, gmail_connected_at = now() WHERE id = $3`,
+        [tokenData.refresh_token, gmailEmail, uid]
+      );
+    } else {
+      await pool.query(
+        `UPDATE users SET gmail_email = COALESCE($1, gmail_email), gmail_connected_at = now() WHERE id = $2`,
+        [gmailEmail, uid]
+      );
+    }
+    res.redirect(`${FRONTEND_URL}/?gmail=connected`);
+  } catch (err) {
+    console.error("Gmail OAuth callback error:", err.message);
+    res.redirect(`${FRONTEND_URL}/?gmail=error&reason=token_exchange_failed`);
+  }
+});
+
+app.post("/api/gmail/disconnect", authRequired, async (req, res) => {
+  await pool.query(
+    `UPDATE users SET gmail_refresh_token = NULL, gmail_email = NULL, gmail_connected_at = NULL WHERE id = $1`,
+    [req.user.id]
+  );
+  res.status(204).end();
+});
+
+app.get("/api/gmail/status", authRequired, async (req, res) => {
+  const { rows } = await pool.query(
+    "SELECT gmail_email, gmail_connected_at, gmail_last_checked_at FROM users WHERE id = $1",
+    [req.user.id]
+  );
+  const row = rows[0] || {};
+  res.json({
+    connected: !!row.gmail_connected_at,
+    email: row.gmail_email || null,
+    lastCheckedAt: row.gmail_last_checked_at || null,
+  });
+});
+
+async function getGmailAccessToken(refreshToken) {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      grant_type: "refresh_token",
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error_description || data.error || "Could not refresh Gmail access token");
+  return data.access_token;
+}
+
+// v1 keyword classifier. Deliberately simple and cheap (no per-email AI
+// call) — checks the subject + snippet against a few common phrase
+// patterns per outcome. Rejection phrasing is checked first since
+// "unfortunately... interview" type phrasing should read as a rejection,
+// not an interview invite.
+function classifyEmail(text) {
+  const t = text.toLowerCase();
+  const has = (...phrases) => phrases.some((p) => t.includes(p));
+  if (has("unfortunately", "not moving forward", "not selected", "other candidates", "will not be proceeding", "regret to inform"))
+    return "rejected";
+  if (has("offer letter", "pleased to offer", "job offer", "we'd like to offer", "congratulations")) return "offer";
+  if (has("interview", "schedule a call", "schedule a chat", "phone screen", "hiring manager would like to speak"))
+    return "interviewing";
+  return null; // no confident match — leave the application's status alone
+}
+
+// The actual "Check my Gmail" action. Pulls the user's own applications,
+// searches their inbox for anything mentioning each company/platform, and
+// bumps status forward (never backward) when a phrase confidently matches.
+app.post("/api/gmail/check", authRequired, async (req, res) => {
+  const { rows: userRows } = await pool.query("SELECT gmail_refresh_token FROM users WHERE id = $1", [req.user.id]);
+  const refreshToken = userRows[0]?.gmail_refresh_token;
+  if (!refreshToken) return res.status(400).json({ error: "Connect your Gmail first." });
+
+  const { rows: apps } = await pool.query(
+    "SELECT * FROM applications WHERE user_id = $1 AND status NOT IN ('offer', 'rejected')",
+    [req.user.id]
+  );
+  if (apps.length === 0) {
+    await pool.query("UPDATE users SET gmail_last_checked_at = now() WHERE id = $1", [req.user.id]);
+    return res.json({ checked: 0, updated: [] });
+  }
+
+  let accessToken;
+  try {
+    accessToken = await getGmailAccessToken(refreshToken);
+  } catch (err) {
+    return res.status(502).json({ error: "Couldn't reach Gmail — try reconnecting your account. (" + err.message + ")" });
+  }
+
+  const updated = [];
+  const STATUS_RANK = { draft: 0, applied: 1, interviewing: 2, offer: 3, rejected: 3 };
+
+  for (const app of apps) {
+    const searchTerm = (app.company !== "(pending)" && app.company !== "(untitled)") ? app.company : app.platform;
+    if (!searchTerm) continue;
+
+    try {
+      const gmailRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(`"${searchTerm}" newer_than:60d`)}&maxResults=5`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const gmailData = await gmailRes.json();
+      const messageIds = (gmailData.messages || []).map((m) => m.id);
+      if (messageIds.length === 0) continue;
+
+      let bestStatus = null;
+      for (const id of messageIds) {
+        const msgRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata&metadataHeaders=Subject`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const msg = await msgRes.json();
+        const subject = (msg.payload?.headers || []).find((h) => h.name === "Subject")?.value || "";
+        const guess = classifyEmail(`${subject} ${msg.snippet || ""}`);
+        if (guess && (STATUS_RANK[guess] ?? 0) > (STATUS_RANK[bestStatus] ?? -1)) bestStatus = guess;
+      }
+
+      if (bestStatus && (STATUS_RANK[bestStatus] ?? 0) > (STATUS_RANK[app.status] ?? 0)) {
+        await pool.query("UPDATE applications SET status = $1, updated_at = now() WHERE id = $2", [bestStatus, app.id]);
+        updated.push({ id: app.id, company: app.company, role: app.role, from: app.status, to: bestStatus });
+      }
+    } catch (err) {
+      console.error(`Gmail check failed for application ${app.id}:`, err.message);
+    }
+  }
+
+  await pool.query("UPDATE users SET gmail_last_checked_at = now() WHERE id = $1", [req.user.id]);
+  res.json({ checked: apps.length, updated });
 });
 
 app.get("/api/stats", authRequired, async (req, res) => {
