@@ -33,7 +33,7 @@ const BILLING_PLANS = {
   yearly: { price: STRIPE_PRICE_YEARLY, mode: "subscription" },
 };
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
-const FREE_APPLICATION_LIMIT = 15;
+const FREE_APPLICATION_LIMIT = 5;
 
 function isPremium(user) {
   if (user.plan !== "premium") return false;
