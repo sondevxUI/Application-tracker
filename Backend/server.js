@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pg from "pg";
 import Stripe from "stripe";
+import IntaSend from "intasend-node";
 import { randomUUID } from "crypto";
 
 const { Pool } = pg;
@@ -34,6 +35,47 @@ const BILLING_PLANS = {
 };
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 const FREE_APPLICATION_LIMIT = 5;
+
+// ---------------------------------------------------------------------
+// Billing (IntaSend — M-Pesa + local Kenyan bank/card)
+// M-Pesa STK Push only reaches Safaricom-registered numbers (Airtel Money
+// is a separate network IntaSend/Safaricom don't route STK to) — phone
+// validation below is deliberately loose and lets Safaricom's own error
+// surface back to the user rather than us guessing every valid prefix.
+// All three IntaSend plans are one-time charges (no recurring billing on
+// this rail), so "monthly"/"yearly" here just grant a longer premium
+// window from the moment of payment, not an ongoing subscription.
+// ---------------------------------------------------------------------
+const INTASEND_PUBLISHABLE_KEY = process.env.INTASEND_PUBLISHABLE_KEY;
+const INTASEND_SECRET_KEY = process.env.INTASEND_SECRET_KEY;
+const INTASEND_TEST_MODE = process.env.INTASEND_TEST_MODE !== "false"; // defaults to test/sandbox
+const INTASEND_WEBHOOK_CHALLENGE = process.env.INTASEND_WEBHOOK_CHALLENGE;
+const INTASEND_API_BASE = INTASEND_TEST_MODE ? "https://sandbox.intasend.com" : "https://payment.intasend.com";
+const KES_BILLING_PLANS = { daily: 650, monthly: 1300, yearly: 13000 };
+const intasend =
+  INTASEND_PUBLISHABLE_KEY && INTASEND_SECRET_KEY
+    ? new IntaSend(INTASEND_PUBLISHABLE_KEY, INTASEND_SECRET_KEY, INTASEND_TEST_MODE)
+    : null;
+
+// Accepts 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, 2541XXXXXXXX, or with a
+// leading +. Normalizes to the 2547XXXXXXXX / 2541XXXXXXXX format IntaSend
+// expects. Doesn't try to whitelist every Safaricom prefix — Safaricom's
+// own STK gateway will reject a non-Safaricom number and we surface that.
+function normalizeKenyanPhone(raw) {
+  if (!raw) return null;
+  const digits = String(raw).replace(/[\s\-()]/g, "").replace(/^\+/, "");
+  if (/^0[17]\d{8}$/.test(digits)) return "254" + digits.slice(1);
+  if (/^254[17]\d{8}$/.test(digits)) return digits;
+  return null;
+}
+
+function intasendPremiumExpiry(plan) {
+  const now = Date.now();
+  if (plan === "daily") return new Date(now + 24 * 60 * 60 * 1000);
+  if (plan === "monthly") return new Date(now + 30 * 24 * 60 * 60 * 1000);
+  if (plan === "yearly") return new Date(now + 365 * 24 * 60 * 60 * 1000);
+  return null;
+}
 
 function isPremium(user) {
   if (user.plan !== "premium") return false;
@@ -594,6 +636,122 @@ app.post("/api/billing/portal", authRequired, async (req, res) => {
     return_url: `${FRONTEND_URL}/`,
   });
   res.json({ url: session.url });
+});
+
+// ---------------------------------------------------------------------
+// Billing (IntaSend — M-Pesa STK Push + local bank/card)
+// ---------------------------------------------------------------------
+
+// Triggers a real STK push to the user's phone. The frontend then polls
+// /api/billing/status until premium flips true (webhook below is what
+// actually flips it — this route only kicks off the prompt).
+app.post("/api/billing/mpesa/stk", authRequired, async (req, res) => {
+  if (!intasend) {
+    return res.status(500).json({ error: "M-Pesa isn't configured yet." });
+  }
+  const plan = req.body?.plan;
+  const amount = KES_BILLING_PLANS[plan];
+  if (!amount) {
+    return res.status(400).json({ error: "Pick a valid plan (daily, monthly, or yearly)." });
+  }
+  const phone = normalizeKenyanPhone(req.body?.phone);
+  if (!phone) {
+    return res.status(400).json({ error: "Enter a valid Safaricom M-Pesa number, e.g. 0712345678." });
+  }
+
+  const nameParts = (req.user.displayName || req.user.email.split("@")[0]).trim().split(/\s+/);
+  const apiRef = `${req.user.id}:${plan}:${Date.now()}`;
+
+  try {
+    const collection = intasend.collection();
+    const resp = await collection.mpesaStkPush({
+      first_name: nameParts[0] || "Customer",
+      last_name: nameParts.slice(1).join(" ") || "Tracker",
+      email: req.user.email,
+      host: FRONTEND_URL,
+      amount,
+      phone_number: phone,
+      api_ref: apiRef,
+    });
+    res.json({
+      message: `Check ${phone} and enter your M-Pesa PIN to complete the KES ${amount} payment.`,
+      invoiceId: resp?.invoice?.invoice_id || resp?.id || null,
+    });
+  } catch (err) {
+    console.error("IntaSend M-Pesa STK push error:", err.message || err);
+    res.status(500).json({ error: "Couldn't send the M-Pesa prompt — check the number and try again." });
+  }
+});
+
+// Local bank / card via IntaSend's hosted checkout — we redirect the user
+// there the same way the Stripe flow redirects to Stripe Checkout. IntaSend
+// presents its own bank-selection UI on that page.
+app.post("/api/billing/checkout-intasend", authRequired, async (req, res) => {
+  if (!INTASEND_PUBLISHABLE_KEY) {
+    return res.status(500).json({ error: "Bank/card payments aren't configured yet." });
+  }
+  const plan = req.body?.plan;
+  const amount = KES_BILLING_PLANS[plan];
+  if (!amount) {
+    return res.status(400).json({ error: "Pick a valid plan (daily, monthly, or yearly)." });
+  }
+  const nameParts = (req.user.displayName || req.user.email.split("@")[0]).trim().split(/\s+/);
+  const apiRef = `${req.user.id}:${plan}:${Date.now()}`;
+
+  try {
+    const resp = await fetch(`${INTASEND_API_BASE}/api/v1/checkout/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        public_key: INTASEND_PUBLISHABLE_KEY,
+        amount,
+        currency: "KES",
+        email: req.user.email,
+        first_name: nameParts[0] || "Customer",
+        last_name: nameParts.slice(1).join(" ") || "Tracker",
+        country: "KE",
+        api_ref: apiRef,
+        redirect_url: `${FRONTEND_URL}/?billing=success`,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.url) {
+      console.error("IntaSend checkout error:", data);
+      return res.status(500).json({ error: "Couldn't start checkout — try again shortly." });
+    }
+    res.json({ url: data.url });
+  } catch (err) {
+    console.error("IntaSend checkout request failed:", err.message || err);
+    res.status(500).json({ error: "Couldn't reach the payment provider — try again shortly." });
+  }
+});
+
+// IntaSend confirms payment here (M-Pesa STK completion, and the hosted
+// bank/card checkout above both land on this same webhook). IntaSend auth
+// is a shared "challenge" string configured in their dashboard, not an
+// HMAC signature — we just compare it.
+app.post("/api/billing/webhook-intasend", async (req, res) => {
+  if (!INTASEND_WEBHOOK_CHALLENGE || req.body?.challenge !== INTASEND_WEBHOOK_CHALLENGE) {
+    return res.status(401).json({ error: "Invalid webhook challenge" });
+  }
+  const state = req.body?.state || req.body?.invoice?.state;
+  const apiRef = req.body?.api_ref || req.body?.invoice?.api_ref;
+  if (state !== "COMPLETE" || !apiRef) {
+    return res.json({ received: true }); // ignore anything that isn't a completed payment
+  }
+  const [userId, plan] = apiRef.split(":");
+  const expiresAt = intasendPremiumExpiry(plan);
+  if (!userId || !expiresAt) return res.json({ received: true });
+
+  try {
+    await pool.query(
+      `UPDATE users SET plan = 'premium', billing_provider = 'intasend', premium_expires_at = $1 WHERE id = $2`,
+      [expiresAt, userId]
+    );
+  } catch (err) {
+    console.error("IntaSend webhook DB update failed:", err.message);
+  }
+  res.json({ received: true });
 });
 
 // ---------------------------------------------------------------------

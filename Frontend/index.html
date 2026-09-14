@@ -357,7 +357,32 @@
   .pricing-name { font-weight: 600; font-size: 14px; }
   .pricing-price { font-size: 22px; font-weight: 700; }
   .pricing-price span { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+  .pricing-kes { font-size: 11px; color: var(--text-muted); margin-top: -6px; }
   .pricing-desc { font-size: 12px; color: var(--text-muted); flex: 1; }
+  .pricing-methods { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pricing-methods button { flex: 1; padding: 8px 6px; font-size: 12px; }
+  .mpesa-inline {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mpesa-inline input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+  }
+  .mpesa-status { font-size: 11px; color: var(--text-muted); }
+  .mpesa-status.error { color: var(--danger); }
+  .mpesa-status.connected { color: var(--offer); }
   @media (max-width: 640px) {
     .pricing-grid { grid-template-columns: 1fr; }
   }
@@ -635,20 +660,50 @@
       <div class="pricing-card">
         <div class="pricing-name">Day pass</div>
         <div class="pricing-price">$5<span>/ one day</span></div>
+        <div class="pricing-kes">≈ KES 650 via M-Pesa / bank</div>
         <div class="pricing-desc">One-time charge. 24 hours of full access — good for a focused application push.</div>
-        <button type="button" class="btn-primary pricing-choose" data-plan="daily">Choose</button>
+        <div class="pricing-methods">
+          <button type="button" class="btn-primary pricing-choose" data-plan="daily">Card</button>
+          <button type="button" class="btn-ghost mpesa-toggle" data-plan="daily">M-Pesa</button>
+          <button type="button" class="btn-ghost bank-choose" data-plan="daily">Bank</button>
+        </div>
+        <div class="mpesa-inline hidden" data-plan="daily">
+          <input type="tel" class="mpesa-phone" placeholder="0712345678 (Safaricom)" />
+          <button type="button" class="btn-primary btn-sm mpesa-submit" data-plan="daily">Send M-Pesa prompt</button>
+          <div class="mpesa-status" data-plan="daily"></div>
+        </div>
       </div>
       <div class="pricing-card featured">
         <div class="pricing-name">Monthly</div>
         <div class="pricing-price">$10<span>/ month</span></div>
-        <div class="pricing-desc">Recurring subscription. Cancel anytime from Manage billing.</div>
-        <button type="button" class="btn-primary pricing-choose" data-plan="monthly">Choose</button>
+        <div class="pricing-kes">≈ KES 1,300 via M-Pesa / bank</div>
+        <div class="pricing-desc">Recurring subscription (card). One-time charge on M-Pesa/bank — cancel anytime from Manage billing on card plans.</div>
+        <div class="pricing-methods">
+          <button type="button" class="btn-primary pricing-choose" data-plan="monthly">Card</button>
+          <button type="button" class="btn-ghost mpesa-toggle" data-plan="monthly">M-Pesa</button>
+          <button type="button" class="btn-ghost bank-choose" data-plan="monthly">Bank</button>
+        </div>
+        <div class="mpesa-inline hidden" data-plan="monthly">
+          <input type="tel" class="mpesa-phone" placeholder="0712345678 (Safaricom)" />
+          <button type="button" class="btn-primary btn-sm mpesa-submit" data-plan="monthly">Send M-Pesa prompt</button>
+          <div class="mpesa-status" data-plan="monthly"></div>
+        </div>
       </div>
       <div class="pricing-card">
         <div class="pricing-name">Yearly</div>
         <div class="pricing-price">$100<span>/ year</span></div>
-        <div class="pricing-desc">Recurring subscription, ~2 months free vs monthly.</div>
-        <button type="button" class="btn-primary pricing-choose" data-plan="yearly">Choose</button>
+        <div class="pricing-kes">≈ KES 13,000 via M-Pesa / bank</div>
+        <div class="pricing-desc">Recurring subscription (card), ~2 months free vs monthly. One-time charge on M-Pesa/bank.</div>
+        <div class="pricing-methods">
+          <button type="button" class="btn-primary pricing-choose" data-plan="yearly">Card</button>
+          <button type="button" class="btn-ghost mpesa-toggle" data-plan="yearly">M-Pesa</button>
+          <button type="button" class="btn-ghost bank-choose" data-plan="yearly">Bank</button>
+        </div>
+        <div class="mpesa-inline hidden" data-plan="yearly">
+          <input type="tel" class="mpesa-phone" placeholder="0712345678 (Safaricom)" />
+          <button type="button" class="btn-primary btn-sm mpesa-submit" data-plan="yearly">Send M-Pesa prompt</button>
+          <div class="mpesa-status" data-plan="yearly"></div>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -1136,14 +1191,111 @@ document.querySelectorAll(".pricing-choose").forEach((btn) => {
       if (!res.ok) {
         showGmailStatusLine(data.error || "Couldn't start checkout.", "error");
         btn.disabled = false;
-        btn.textContent = "Choose";
+        btn.textContent = "Card";
         return;
       }
       window.location.href = data.url; // Stripe Checkout
     } catch {
       showGmailStatusLine("Couldn't reach the server to start checkout.", "error");
       btn.disabled = false;
-      btn.textContent = "Choose";
+      btn.textContent = "Card";
+    }
+  });
+});
+
+// ---------- M-Pesa (IntaSend STK push) ----------
+document.querySelectorAll(".mpesa-toggle").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const plan = btn.dataset.plan;
+    const panel = document.querySelector(`.mpesa-inline[data-plan="${plan}"]`);
+    panel.classList.toggle("hidden");
+  });
+});
+
+function setMpesaStatus(plan, text, kind) {
+  const el = document.querySelector(`.mpesa-status[data-plan="${plan}"]`);
+  el.textContent = text;
+  el.className = "mpesa-status" + (kind ? ` ${kind}` : "");
+}
+
+// After a successful STK push, poll billing status until premium flips
+// true (the IntaSend webhook is what actually flips it once the user
+// enters their PIN) — stop after ~90s so a wrong PIN / ignored prompt
+// doesn't poll forever.
+async function pollForPremium(plan) {
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const status = await refreshBillingStatus();
+    if (status.premium) {
+      setMpesaStatus(plan, "Payment received — you're on Premium!", "connected");
+      document.getElementById("pricingModalBackdrop").classList.remove("open");
+      await fetchApplications();
+      await fetchStats();
+      return;
+    }
+  }
+  setMpesaStatus(plan, "Still waiting on payment confirmation — if you completed it on your phone, this may take a minute longer.", "");
+}
+
+document.querySelectorAll(".mpesa-submit").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const plan = btn.dataset.plan;
+    const panel = document.querySelector(`.mpesa-inline[data-plan="${plan}"]`);
+    const phone = panel.querySelector(".mpesa-phone").value.trim();
+    if (!phone) {
+      setMpesaStatus(plan, "Enter your M-Pesa (Safaricom) number first.", "error");
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+    setMpesaStatus(plan, "Sending prompt…", "");
+    try {
+      const res = await fetch(`${API}/billing/mpesa/stk`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ plan, phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMpesaStatus(plan, data.error || "Couldn't send the M-Pesa prompt.", "error");
+        btn.disabled = false;
+        btn.textContent = "Send M-Pesa prompt";
+        return;
+      }
+      setMpesaStatus(plan, data.message || "Check your phone to enter your M-Pesa PIN.", "connected");
+      btn.textContent = "Waiting for payment…";
+      pollForPremium(plan);
+    } catch {
+      setMpesaStatus(plan, "Couldn't reach the server to send the prompt.", "error");
+      btn.disabled = false;
+      btn.textContent = "Send M-Pesa prompt";
+    }
+  });
+});
+
+// ---------- Bank / card via IntaSend hosted checkout ----------
+document.querySelectorAll(".bank-choose").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Redirecting…";
+    try {
+      const res = await fetch(`${API}/billing/checkout-intasend`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ plan: btn.dataset.plan }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showGmailStatusLine(data.error || "Couldn't start bank checkout.", "error");
+        btn.disabled = false;
+        btn.textContent = "Bank";
+        return;
+      }
+      window.location.href = data.url; // IntaSend hosted checkout (bank/card)
+    } catch {
+      showGmailStatusLine("Couldn't reach the server to start checkout.", "error");
+      btn.disabled = false;
+      btn.textContent = "Bank";
     }
   });
 });
