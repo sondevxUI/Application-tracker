@@ -1621,18 +1621,35 @@ async function loadApplicantsList() {
   listEl.innerHTML = members.length
     ? members.map((u) => `
         <div class="applicant-item">
-          <button type="button" class="applicant-select" onclick="selectUserFilter('${u.id}', ${JSON.stringify(u.displayName || u.email)})">
+          <button type="button" class="applicant-select" data-id="${u.id}" data-label="${escapeHTML(u.displayName || u.email)}">
             <div class="applicant-name">${escapeHTML(u.displayName || u.email)}</div>
             <div class="applicant-email">${escapeHTML(u.email)}</div>
             ${u.skills
               ? `<div class="applicant-skills">${escapeHTML(u.skills)}</div>`
               : `<div class="applicant-none">No skills listed yet</div>`}
           </button>
-          <button type="button" class="btn-ghost btn-sm applicant-delete" onclick="deleteUser('${u.id}', ${JSON.stringify(u.displayName || u.email)})">Delete</button>
+          <button type="button" class="btn-ghost btn-sm applicant-delete" data-id="${u.id}" data-label="${escapeHTML(u.displayName || u.email)}">Delete</button>
         </div>
       `).join("")
     : `<div class="empty-state">No applicants have signed up yet</div>`;
 }
+
+// Event delegation on the list container instead of inline onclick handlers:
+// building onclick="..." strings by interpolating a user-controlled display
+// name breaks (and is unsafe) the moment that name contains a quote or other
+// HTML-special character — data attributes + one listener sidesteps that
+// entirely, and survives the list being re-rendered on every modal open.
+document.getElementById("applicantsList").addEventListener("click", (e) => {
+  const selectBtn = e.target.closest(".applicant-select");
+  if (selectBtn) {
+    selectUserFilter(selectBtn.dataset.id, selectBtn.dataset.label);
+    return;
+  }
+  const deleteBtn = e.target.closest(".applicant-delete");
+  if (deleteBtn) {
+    deleteUser(deleteBtn.dataset.id, deleteBtn.dataset.label);
+  }
+});
 
 document.getElementById("applicantsBtn").addEventListener("click", async () => {
   await loadApplicantsList();
